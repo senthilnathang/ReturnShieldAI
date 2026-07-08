@@ -1,5 +1,5 @@
 import { Link, NavLink } from 'react-router-dom';
-import { ArrowRight, Brain, GitBranch, Layers3, LineChart, Monitor, Pin, PinOff, Search, Shield, Sparkles, SlidersHorizontal, Timer } from 'lucide-react';
+import { ArrowRight, Brain, Database, GitBranch, Layers3, LineChart, Monitor, Pin, PinOff, Search, Shield, Sparkles, SlidersHorizontal, Timer } from 'lucide-react';
 
 const navSections = [
   {
@@ -37,6 +37,7 @@ const navSections = [
     label: 'System',
     items: [
       { to: '/modules', label: 'Modules', icon: Monitor },
+      { to: '/kaggle', label: 'Kaggle Import', icon: Database },
     ],
   },
 ] as const;

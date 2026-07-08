@@ -1930,6 +1930,139 @@ function GraphAnalyticsPage() {
   );
 }
 
+function KaggleImportPage() {
+  const [datasets, setDatasets] = useState<Array<Record<string, unknown>>>([]);
+  const [selectedDataset, setSelectedDataset] = useState("");
+  const [maxRows, setMaxRows] = useState(5000);
+  const [importing, setImporting] = useState(false);
+  const [result, setResult] = useState<Record<string, unknown> | string | null>(null);
+
+  useEffect(() => {
+    api.listKaggleDatasets().then((data) => setDatasets(data.datasets)).catch(() => undefined);
+  }, []);
+
+  const handleImport = async () => {
+    if (!selectedDataset) return;
+    setImporting(true);
+    setResult(null);
+    try {
+      const res = await api.importKaggleDataset(selectedDataset, maxRows);
+      setResult(res);
+    } catch (e) {
+      setResult(String(e));
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <PageHeader
+        eyebrow="Data Import"
+        title="Kaggle Dataset Import"
+        subtitle="Download and import datasets from Kaggle directly into the fraud decisioning engine."
+      />
+
+      <Panel title="Available datasets" subtitle="Pre-configured Kaggle datasets for e-commerce fraud analysis.">
+        <div className="space-y-3">
+          {datasets.length === 0 ? (
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">No datasets configured.</div>
+          ) : datasets.map((ds) => (
+            <label key={ds.id as string} className={`flex cursor-pointer items-start gap-4 rounded-3xl border p-4 transition ${
+              selectedDataset === ds.id ? 'border-purple-300 bg-purple-50' : 'border-slate-200 bg-white hover:bg-slate-50'
+            }`}>
+              <input type="radio" name="dataset" value={ds.id as string}
+                checked={selectedDataset === ds.id}
+                onChange={() => { setSelectedDataset(ds.id as string); setResult(null); }}
+                className="mt-1 accent-purple-600" />
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold text-slate-900">{ds.name as string}</div>
+                <div className="mt-1 text-xs text-slate-500">{ds.description as string}</div>
+                <div className="mt-2 flex gap-3 text-xs text-slate-400">
+                  <span>{ds.size as string}</span>
+                  <span>{ds.records as string} records</span>
+                </div>
+              </div>
+            </label>
+          ))}
+        </div>
+      </Panel>
+
+      <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+        <Panel title="Import configuration" subtitle="Control batch size and row limit for the import.">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div>
+              <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Max rows</label>
+              <input type="number" value={maxRows}
+                onChange={(e) => setMaxRows(Number(e.target.value))}
+                min={100} max={100000} step={100}
+                className="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none" />
+            </div>
+            <div className="flex items-end">
+              <button onClick={handleImport} disabled={importing || !selectedDataset}
+                className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-medium text-white shadow-sm hover:bg-slate-800 disabled:opacity-40">
+                {importing ? 'Importing...' : 'Import dataset'}
+              </button>
+            </div>
+            <div className="flex items-end">
+              <span className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                ~{Math.round(maxRows / 250)} batches
+              </span>
+            </div>
+          </div>
+        </Panel>
+
+        <Panel title="Column mapping" subtitle="How Kaggle fields map to engine models.">
+          <div className="space-y-2 text-xs text-slate-600">
+            <div className="rounded-2xl bg-slate-50 px-3 py-2">
+              <span className="font-medium text-slate-800">customer_id</span> → Customer
+            </div>
+            <div className="rounded-2xl bg-slate-50 px-3 py-2">
+              <span className="font-medium text-slate-800">product, unit_price_usd</span> → Order
+            </div>
+            <div className="rounded-2xl bg-slate-50 px-3 py-2">
+              <span className="font-medium text-slate-800">return_flag=1</span> → ReturnRecord & Case
+            </div>
+            <div className="rounded-2xl bg-slate-50 px-3 py-2">
+              <span className="font-medium text-slate-800">support_tickets, churn</span> → FraudScore
+            </div>
+          </div>
+        </Panel>
+      </div>
+
+      {result && (
+        <Panel title="Import result" subtitle="Status of the dataset import.">
+          {typeof result === 'string' ? (
+            <div className="rounded-3xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{result}</div>
+          ) : (
+            <div className="space-y-3">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {[
+                  ["Customers", (result as Record<string, unknown>).customers],
+                  ["Orders", (result as Record<string, unknown>).orders],
+                  ["Returns (flagged)", (result as Record<string, unknown>).returns_with_flag],
+                  ["Cases created", (result as Record<string, unknown>).cases_created],
+                  ["Fraud scores", (result as Record<string, unknown>).fraud_scores],
+                  ["Files processed", (result as Record<string, unknown>).files_processed],
+                  ["Skipped (no return)", (result as Record<string, unknown>).skipped_no_return_flag],
+                ].map(([label, value]) => (
+                  <div key={label as string} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="text-[10px] uppercase tracking-[0.22em] text-slate-500">{label as string}</div>
+                    <div className="mt-2 text-lg font-semibold text-slate-900">{String(value ?? '—')}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+                Dataset imported successfully. {String((result as Record<string, unknown>).cases_created ?? 0)} fraud cases are now in the queue.
+              </div>
+            </div>
+          )}
+        </Panel>
+      )}
+    </div>
+  );
+}
+
 function ModuleDashboardPage() {
   const [data, setData] = useState<Record<string, unknown> | null>(null);
   const [seedResult, setSeedResult] = useState<string | null>(null);
@@ -2078,6 +2211,7 @@ function AppInner() {
         <Route path="/patterns" element={<PatternLibraryPage />} />
         <Route path="/graph-analytics" element={<GraphAnalyticsPage />} />
         <Route path="/modules" element={<ModuleDashboardPage />} />
+        <Route path="/kaggle" element={<KaggleImportPage />} />
       </Routes>
     </AppShell>
   );

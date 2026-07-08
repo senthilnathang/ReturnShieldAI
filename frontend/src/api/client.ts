@@ -68,4 +68,10 @@ export const api = {
     request<{ seeded: boolean; results: Record<string, unknown> }>('/seed', { method: 'POST' }),
   getModuleDashboard: () =>
     request<Record<string, unknown>>('/modules/dashboard'),
+  listKaggleDatasets: () =>
+    request<{ datasets: Array<Record<string, unknown>>; total: number }>('/kaggle/datasets'),
+  importKaggleDataset: (datasetId: string, maxRows?: number) =>
+    request<Record<string, unknown>>('/kaggle/import', { method: 'POST', body: JSON.stringify({ dataset_id: datasetId, max_rows: maxRows ?? 5000 }) }),
+  importKaggleLocal: (path: string, maxRows?: number) =>
+    request<Record<string, unknown>>('/kaggle/import/local', { method: 'POST', body: JSON.stringify({ path, max_rows: maxRows ?? 5000 }) }),
 };

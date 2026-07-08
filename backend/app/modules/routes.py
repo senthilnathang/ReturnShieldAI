@@ -311,3 +311,43 @@ def evaluate_alerts(payload: dict[str, Any]):
 @router.get("/alerts/rules")
 def list_alert_rules():
     return {"rules": [{"name": r.name, "description": r.description, "severity": r.severity, "providers": r.providers} for r in _alert_engine.rules]}
+
+
+# --- Kaggle Import Routes ---
+
+@router.get("/kaggle/datasets")
+def kaggle_list_datasets():
+    from backend.app.modules.kaggle_import.importer import KAGGLE_DATASETS_CATALOG
+    return {"datasets": KAGGLE_DATASETS_CATALOG, "total": len(KAGGLE_DATASETS_CATALOG)}
+
+
+@router.post("/kaggle/import")
+def kaggle_import(payload: dict[str, Any], session: Session = Depends(get_session)):
+    dataset_id = payload.get("dataset_id", "")
+    batch_size = payload.get("batch_size", 250)
+    max_rows = payload.get("max_rows", 5000)
+    if not dataset_id:
+        raise HTTPException(status_code=400, detail="dataset_id is required")
+
+    from backend.app.modules.kaggle_import.importer import import_from_kaggle_id
+
+    result = import_from_kaggle_id(session, dataset_id, batch_size=batch_size, max_rows=max_rows)
+    if "error" in result:
+        raise HTTPException(status_code=500, detail=result["error"])
+    return result
+
+
+@router.post("/kaggle/import/local")
+def kaggle_import_local(payload: dict[str, Any], session: Session = Depends(get_session)):
+    path = payload.get("path", "")
+    batch_size = payload.get("batch_size", 250)
+    max_rows = payload.get("max_rows", 5000)
+    if not path:
+        raise HTTPException(status_code=400, detail="path is required")
+
+    from backend.app.modules.kaggle_import.importer import import_dataset
+
+    result = import_dataset(session, path, batch_size=batch_size, max_rows=max_rows)
+    if "error" in result:
+        raise HTTPException(status_code=500, detail=result["error"])
+    return result
