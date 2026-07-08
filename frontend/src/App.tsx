@@ -1931,22 +1931,55 @@ function GraphAnalyticsPage() {
 }
 
 function KaggleImportPage() {
-  const [datasets, setDatasets] = useState<Array<Record<string, unknown>>>([]);
-  const [selectedDataset, setSelectedDataset] = useState("");
+  const [datasetInput, setDatasetInput] = useState("");
   const [maxRows, setMaxRows] = useState(5000);
+  const [preview, setPreview] = useState<Record<string, unknown> | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [mapping, setMapping] = useState<Record<string, string>>({});
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<Record<string, unknown> | string | null>(null);
+  const [modelFields, setModelFields] = useState<Record<string, Record<string, unknown>>>({});
 
   useEffect(() => {
-    api.listKaggleDatasets().then((data) => setDatasets(data.datasets)).catch(() => undefined);
+    fetch('/api/kaggle/model-fields').then((r) => r.json()).then((d) => setModelFields(d.model_fields as Record<string, Record<string, unknown>>)).catch(() => undefined);
   }, []);
 
+  const handlePreview = async () => {
+    const datasetId = datasetInput.trim();
+    if (!datasetId) return;
+    setPreviewLoading(true);
+    setPreviewError(null);
+    setPreview(null);
+    setResult(null);
+    try {
+      const res = await api.previewKaggle(datasetId);
+      if (res.error) { setPreviewError(String(res.error)); return; }
+      setPreview(res);
+      setMapping((res.auto_mapping ?? {}) as Record<string, string>);
+    } catch (e) {
+      setPreviewError(String(e));
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const setMap = (target: string, source: string) => {
+    setMapping((prev) => ({ ...prev, [target]: source }));
+  };
+  const clearMap = (target: string) => {
+    setMapping((prev) => { const { [target]: _, ...rest } = prev; return rest; });
+  };
+
+  const usableColumns = preview?.columns as string[] ?? [];
+
   const handleImport = async () => {
-    if (!selectedDataset) return;
+    const datasetId = datasetInput.trim();
+    if (!datasetId || Object.keys(mapping).length === 0) return;
     setImporting(true);
     setResult(null);
     try {
-      const res = await api.importKaggleDataset(selectedDataset, maxRows);
+      const res = await api.importKaggleWithMapping(datasetId, mapping, maxRows);
       setResult(res);
     } catch (e) {
       setResult(String(e));
@@ -1960,75 +1993,140 @@ function KaggleImportPage() {
       <PageHeader
         eyebrow="Data Import"
         title="Kaggle Dataset Import"
-        subtitle="Download and import datasets from Kaggle directly into the fraud decisioning engine."
+        subtitle="Enter any Kaggle dataset ID, preview its schema, configure column mappings, then import."
       />
 
-      <Panel title="Available datasets" subtitle="Pre-configured Kaggle datasets for e-commerce fraud analysis.">
-        <div className="space-y-3">
-          {datasets.length === 0 ? (
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">No datasets configured.</div>
-          ) : datasets.map((ds) => (
-            <label key={ds.id as string} className={`flex cursor-pointer items-start gap-4 rounded-3xl border p-4 transition ${
-              selectedDataset === ds.id ? 'border-purple-300 bg-purple-50' : 'border-slate-200 bg-white hover:bg-slate-50'
-            }`}>
-              <input type="radio" name="dataset" value={ds.id as string}
-                checked={selectedDataset === ds.id}
-                onChange={() => { setSelectedDataset(ds.id as string); setResult(null); }}
-                className="mt-1 accent-purple-600" />
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold text-slate-900">{ds.name as string}</div>
-                <div className="mt-1 text-xs text-slate-500">{ds.description as string}</div>
-                <div className="mt-2 flex gap-3 text-xs text-slate-400">
-                  <span>{ds.size as string}</span>
-                  <span>{ds.records as string} records</span>
-                </div>
-              </div>
-            </label>
-          ))}
+      <Panel title="Dataset" subtitle="Enter a Kaggle dataset identifier (e.g. akrambelha/global-e-commerce-dataset-1m-records-20242026)">
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <input
+            value={datasetInput}
+            onChange={(e) => setDatasetInput(e.target.value)}
+            placeholder="username/dataset-name"
+            className="flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-sm outline-none focus:border-purple-300"
+          />
+          <div className="flex gap-2">
+            <button onClick={handlePreview} disabled={previewLoading || !datasetInput.trim()}
+              className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-medium text-white shadow-sm hover:bg-slate-800 disabled:opacity-40">
+              {previewLoading ? 'Downloading...' : 'Preview'}
+            </button>
+            <input type="number" value={maxRows}
+              onChange={(e) => setMaxRows(Number(e.target.value))}
+              min={100} max={100000} step={100}
+              className="w-24 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm outline-none" title="Max rows to import" />
+          </div>
         </div>
       </Panel>
 
-      <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-        <Panel title="Import configuration" subtitle="Control batch size and row limit for the import.">
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            <div>
-              <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Max rows</label>
-              <input type="number" value={maxRows}
-                onChange={(e) => setMaxRows(Number(e.target.value))}
-                min={100} max={100000} step={100}
-                className="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none" />
+      {previewError && (
+        <div className="rounded-3xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{previewError}</div>
+      )}
+
+      {preview && !previewError && (
+        <>
+          <div className="grid gap-4 xl:grid-cols-2">
+            <Panel title="Schema" subtitle={`${(preview.columns as string[]).length} columns detected`}>
+              <div className="max-h-64 space-y-1 overflow-y-auto font-mono text-xs">
+                {(preview.columns as string[]).map((col) => {
+                  const dt = (preview.dtypes as Record<string, string>)[col] ?? 'unknown';
+                  const mappedTo = Object.entries(mapping).find(([, v]) => v === col)?.[0];
+                  return (
+                    <div key={col} className="flex items-center justify-between gap-2 rounded bg-slate-50 px-3 py-1.5">
+                      <div>
+                        <span className="text-slate-800">{col}</span>
+                        <span className="ml-2 text-slate-400">({dt})</span>
+                      </div>
+                      {mappedTo && (
+                        <span className="rounded bg-purple-100 px-2 py-0.5 text-purple-700">→ {mappedTo}</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </Panel>
+
+            <Panel title="Sample rows" subtitle="First rows of the dataset">
+              <div className="overflow-auto max-h-64">
+                <table className="min-w-full text-left text-xs">
+                  <thead className="sticky top-0 bg-slate-100 text-slate-600">
+                    <tr>
+                      {(preview.columns as string[]).slice(0, 8).map((col) => (
+                        <th key={col} className="px-2 py-1.5 font-medium truncate max-w-[120px]">{col}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(preview.sample_rows as Array<Record<string, string>>).slice(0, 5).map((row, ri) => (
+                      <tr key={ri} className="border-t border-slate-100">
+                        {(preview.columns as string[]).slice(0, 8).map((col) => (
+                          <td key={col} className="px-2 py-1.5 truncate max-w-[120px] text-slate-700">{row[col] ?? '—'}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Panel>
+          </div>
+
+          <Panel title="Column Mapping" subtitle="Assign source columns to model fields. At minimum map customer_id, order_id, and product_name.">
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {Object.entries(modelFields).filter(([, info]) => (info as Record<string, unknown>).required).map(([target, info]) => {
+                const cur = mapping[target] ?? '';
+                return (
+                  <div key={target} className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium text-slate-900">
+                        {target} {String((info as Record<string, unknown>).required) === 'true' && <span className="text-red-500">*</span>}
+                      </div>
+                      <div className="text-xs text-slate-500">{String((info as Record<string, unknown>).description ?? '')}</div>
+                    </div>
+                    <select value={cur} onChange={(e) => { const v = e.target.value; v ? setMap(target, v) : clearMap(target); }}
+                      className="min-w-[160px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none">
+                      <option value="">— skip —</option>
+                      {usableColumns.map((col) => <option key={col} value={col}>{col}</option>)}
+                    </select>
+                    <div className="text-xs text-slate-400">({(info as Record<string, unknown>).type as string})</div>
+                  </div>
+                );
+              })}
+              <details className="rounded-2xl border border-slate-200 p-3">
+                <summary className="cursor-pointer text-sm font-medium text-slate-700">Optional fields</summary>
+                <div className="mt-3 space-y-3">
+                  {Object.entries(modelFields).filter(([, info]) => !(info as Record<string, unknown>).required).map(([target, info]) => {
+                    const cur = mapping[target] ?? '';
+                    return (
+                      <div key={target} className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-100 bg-white p-2.5">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm text-slate-800">{target}</div>
+                          <div className="text-xs text-slate-500">{String((info as Record<string, unknown>).description ?? '')}</div>
+                        </div>
+                        <select value={cur} onChange={(e) => { const v = e.target.value; v ? setMap(target, v) : clearMap(target); }}
+                          className="min-w-[140px] rounded-xl border border-slate-200 bg-white px-2 py-1.5 text-xs outline-none">
+                          <option value="">— skip —</option>
+                          {usableColumns.map((col) => <option key={col} value={col}>{col}</option>)}
+                        </select>
+                        <div className="text-xs text-slate-400">({(info as Record<string, unknown>).type as string})</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </details>
             </div>
-            <div className="flex items-end">
-              <button onClick={handleImport} disabled={importing || !selectedDataset}
-                className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-medium text-white shadow-sm hover:bg-slate-800 disabled:opacity-40">
-                {importing ? 'Importing...' : 'Import dataset'}
+            <div className="mt-4 flex items-center justify-between gap-3">
+              <div className="text-sm text-slate-600">
+                {Object.keys(mapping).length} field(s) mapped
+                {!mapping.customer_id ? <span className="ml-2 text-red-500">(customer_id required)</span> : ''}
+                {!mapping.order_id ? <span className="ml-2 text-red-500">(order_id required)</span> : ''}
+                {!mapping.product_name ? <span className="ml-2 text-red-500">(product_name required)</span> : ''}
+              </div>
+              <button onClick={handleImport} disabled={importing || !mapping.customer_id || !mapping.order_id || !mapping.product_name}
+                className="rounded-2xl bg-slate-950 px-6 py-3 text-sm font-medium text-white shadow-sm hover:bg-slate-800 disabled:opacity-40">
+                {importing ? 'Importing...' : `Import up to ${maxRows} rows`}
               </button>
             </div>
-            <div className="flex items-end">
-              <span className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                ~{Math.round(maxRows / 250)} batches
-              </span>
-            </div>
-          </div>
-        </Panel>
-
-        <Panel title="Column mapping" subtitle="How Kaggle fields map to engine models.">
-          <div className="space-y-2 text-xs text-slate-600">
-            <div className="rounded-2xl bg-slate-50 px-3 py-2">
-              <span className="font-medium text-slate-800">customer_id</span> → Customer
-            </div>
-            <div className="rounded-2xl bg-slate-50 px-3 py-2">
-              <span className="font-medium text-slate-800">product, unit_price_usd</span> → Order
-            </div>
-            <div className="rounded-2xl bg-slate-50 px-3 py-2">
-              <span className="font-medium text-slate-800">return_flag=1</span> → ReturnRecord & Case
-            </div>
-            <div className="rounded-2xl bg-slate-50 px-3 py-2">
-              <span className="font-medium text-slate-800">support_tickets, churn</span> → FraudScore
-            </div>
-          </div>
-        </Panel>
-      </div>
+          </Panel>
+        </>
+      )}
 
       {result && (
         <Panel title="Import result" subtitle="Status of the dataset import.">
@@ -2044,7 +2142,7 @@ function KaggleImportPage() {
                   ["Cases created", (result as Record<string, unknown>).cases_created],
                   ["Fraud scores", (result as Record<string, unknown>).fraud_scores],
                   ["Files processed", (result as Record<string, unknown>).files_processed],
-                  ["Skipped (no return)", (result as Record<string, unknown>).skipped_no_return_flag],
+                  ["Skipped", (result as Record<string, unknown>).skipped_no_return_flag],
                 ].map(([label, value]) => (
                   <div key={label as string} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <div className="text-[10px] uppercase tracking-[0.22em] text-slate-500">{label as string}</div>
@@ -2053,7 +2151,7 @@ function KaggleImportPage() {
                 ))}
               </div>
               <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
-                Dataset imported successfully. {String((result as Record<string, unknown>).cases_created ?? 0)} fraud cases are now in the queue.
+                Import complete: {String((result as Record<string, unknown>).cases_created ?? 0)} fraud cases created.
               </div>
             </div>
           )}

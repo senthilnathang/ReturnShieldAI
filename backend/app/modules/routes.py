@@ -315,39 +315,49 @@ def list_alert_rules():
 
 # --- Kaggle Import Routes ---
 
-@router.get("/kaggle/datasets")
-def kaggle_list_datasets():
-    from backend.app.modules.kaggle_import.importer import KAGGLE_DATASETS_CATALOG
-    return {"datasets": KAGGLE_DATASETS_CATALOG, "total": len(KAGGLE_DATASETS_CATALOG)}
+@router.get("/kaggle/model-fields")
+def kaggle_model_fields():
+    from backend.app.modules.kaggle_import.importer import FLAT_MODEL_FIELDS
+    return {"model_fields": FLAT_MODEL_FIELDS}
 
 
-@router.post("/kaggle/import")
-def kaggle_import(payload: dict[str, Any], session: Session = Depends(get_session)):
+@router.post("/kaggle/preview")
+def kaggle_preview(payload: dict[str, Any]):
     dataset_id = payload.get("dataset_id", "")
-    batch_size = payload.get("batch_size", 250)
-    max_rows = payload.get("max_rows", 5000)
-    if not dataset_id:
-        raise HTTPException(status_code=400, detail="dataset_id is required")
+    local_path = payload.get("path", "")
+    max_preview = payload.get("max_preview_rows", 100)
+    from backend.app.modules.kaggle_import.importer import download_and_preview, preview_dataset
 
-    from backend.app.modules.kaggle_import.importer import import_from_kaggle_id
-
-    result = import_from_kaggle_id(session, dataset_id, batch_size=batch_size, max_rows=max_rows)
+    if local_path:
+        result = preview_dataset(local_path, max_preview_rows=max_preview)
+    elif dataset_id:
+        result = download_and_preview(dataset_id, max_preview_rows=max_preview)
+    else:
+        raise HTTPException(status_code=400, detail="Provide dataset_id or path")
     if "error" in result:
         raise HTTPException(status_code=500, detail=result["error"])
     return result
 
 
-@router.post("/kaggle/import/local")
-def kaggle_import_local(payload: dict[str, Any], session: Session = Depends(get_session)):
-    path = payload.get("path", "")
+@router.post("/kaggle/import")
+def kaggle_import(payload: dict[str, Any], session: Session = Depends(get_session)):
+    dataset_id = payload.get("dataset_id", "")
+    local_path = payload.get("path", "")
+    mapping = payload.get("mapping", {})
     batch_size = payload.get("batch_size", 250)
     max_rows = payload.get("max_rows", 5000)
-    if not path:
-        raise HTTPException(status_code=400, detail="path is required")
 
-    from backend.app.modules.kaggle_import.importer import import_dataset
+    if not mapping:
+        raise HTTPException(status_code=400, detail="mapping is required — map at minimum customer_id, order_id, and product_name")
 
-    result = import_dataset(session, path, batch_size=batch_size, max_rows=max_rows)
+    from backend.app.modules.kaggle_import.importer import download_and_import, import_with_mapping
+
+    if local_path:
+        result = import_with_mapping(session, local_path, mapping, batch_size=batch_size, max_rows=max_rows)
+    elif dataset_id:
+        result = download_and_import(session, dataset_id, mapping, batch_size=batch_size, max_rows=max_rows)
+    else:
+        raise HTTPException(status_code=400, detail="Provide dataset_id or path")
     if "error" in result:
         raise HTTPException(status_code=500, detail=result["error"])
     return result
