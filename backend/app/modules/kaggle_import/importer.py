@@ -177,6 +177,71 @@ AUTO_MAP_PATTERNS: dict[str, list[re.Pattern]] = {
         r"^is[_\-]?fraud", r"^fraud[_\-]?flag", r"^fraud$",
         r"^confirmed[_\-]?fraud", r"^label$",
     ]],
+    "customer_age": [re.compile(p, re.I) for p in [
+        r"^age$", r"^customer[_\-]?age", r"^buyer[_\-]?age", r"^user[_\-]?age",
+    ]],
+    "customer_city": [re.compile(p, re.I) for p in [
+        r"^city$", r"^customer[_\-]?city", r"^buyer[_\-]?city", r"^user[_\-]?city",
+    ]],
+    "customer_state": [re.compile(p, re.I) for p in [
+        r"^state$", r"^customer[_\-]?state", r"^buyer[_\-]?state", r"^user[_\-]?state",
+        r"^region$",
+    ]],
+    "customer_gender": [re.compile(p, re.I) for p in [
+        r"^gender$", r"^customer[_\-]?gender", r"^buyer[_\-]?gender", r"^sex$",
+    ]],
+    "customer_zip": [re.compile(p, re.I) for p in [
+        r"^zip[_\-]?code", r"^zip$", r"^postal", r"^customer[_\-]?zip",
+        r"^zip[_\-]?code[_\-]?prefix",
+    ]],
+    "customer_unique_id": [re.compile(p, re.I) for p in [
+        r"^customer[_\-]?unique[_\-]?id", r"^unique[_\-]?customer[_\-]?id",
+    ]],
+    "product_id": [re.compile(p, re.I) for p in [
+        r"^product[_\-]?id$", r"^sku$", r"^item[_\-]?id$",
+    ]],
+    "seller_id": [re.compile(p, re.I) for p in [
+        r"^seller[_\-]?id", r"^vendor[_\-]?id", r"^merchant[_\-]?id",
+    ]],
+    "payment_type": [re.compile(p, re.I) for p in [
+        r"^payment[_\-]?type", r"^pay[_\-]?type",
+    ]],
+    "installments": [re.compile(p, re.I) for p in [
+        r"^installment", r"^payment[_\-]?installment",
+    ]],
+    "discount_rate": [re.compile(p, re.I) for p in [
+        r"^discount", r"^discount[_\-]?rate", r"^discount[_\-]?pct",
+        r"^discount[_\-]?rate$",
+    ]],
+    "freight_value": [re.compile(p, re.I) for p in [
+        r"^freight", r"^freight[_\-]?value", r"^shipping[_\-]?cost",
+    ]],
+    "review_score": [re.compile(p, re.I) for p in [
+        r"^review[_\-]?score", r"^rating", r"^score$", r"^review[_\-]?rating",
+    ]],
+    "product_weight_g": [re.compile(p, re.I) for p in [
+        r"^product[_\-]?weight", r"^weight[_\-]?g", r"^item[_\-]?weight",
+    ]],
+    "product_category_name": [re.compile(p, re.I) for p in [
+        r"^product[_\-]?category", r"^category[_\-]?name",
+    ]],
+    "order_item_id": [re.compile(p, re.I) for p in [
+        r"^order[_\-]?item[_\-]?id", r"^line[_\-]?item[_\-]?id",
+    ]],
+    "shipping_limit_date": [re.compile(p, re.I) for p in [
+        r"^shipping[_\-]?limit", r"^ship[_\-]?by[_\-]?date",
+    ]],
+    "order_purchase_timestamp": [re.compile(p, re.I) for p in [
+        r"^purchase[_\-]?timestamp", r"^order[_\-]?purchase",
+        r"^order[_\-]?purchase[_\-]?timestamp",
+    ]],
+    "order_delivered_customer_date": [re.compile(p, re.I) for p in [
+        r"^delivered[_\-]?customer", r"^delivered[_\-]?customer[_\-]?date",
+    ]],
+    "order_estimated_delivery_date": [re.compile(p, re.I) for p in [
+        r"^estimated[_\-]?delivery", r"^est[_\-]?delivery",
+        r"^order[_\-]?estimated[_\-]?delivery",
+    ]],
 }
 
 # ---------------------------------------------------------------------------
@@ -216,7 +281,13 @@ def preview_dataset(dataset_path: str, max_preview_rows: int = 100) -> dict[str,
     if not files:
         return {"error": "No CSV or Parquet files found", "columns": [], "sample_rows": []}
 
-    df = _read_first_file(files[0], max_preview_rows)
+    if len(files) > 1:
+        df = _join_multi_file_dataset(files, max_preview_rows)
+        multi_joined = True
+    else:
+        df = _read_first_file(files[0], max_preview_rows)
+        multi_joined = False
+
     if df is None or df.empty:
         return {"error": "Failed to read dataset", "columns": [], "sample_rows": []}
 
@@ -228,7 +299,7 @@ def preview_dataset(dataset_path: str, max_preview_rows: int = 100) -> dict[str,
     auto_mapping = auto_detect_mapping(columns)
 
     return {
-        "file": os.path.basename(files[0]),
+        "file": os.path.basename(files[0]) + (" (+ joined)" if multi_joined else ""),
         "total_files": len(files),
         "columns": columns,
         "dtypes": dtypes,
@@ -236,6 +307,7 @@ def preview_dataset(dataset_path: str, max_preview_rows: int = 100) -> dict[str,
         "total_rows_in_preview": len(df),
         "auto_mapping": auto_mapping,
         "model_fields": FLAT_MODEL_FIELDS,
+        "multi_file_joined": multi_joined,
     }
 
 
@@ -252,6 +324,66 @@ def _read_first_file(file_path: str, nrows: int) -> pd.DataFrame | None:
             return None
     except Exception:
         return None
+
+
+# ---------------------------------------------------------------------------
+# Multi-file relational dataset join helper
+# ---------------------------------------------------------------------------
+
+
+def _join_multi_file_dataset(files: list[str], nrows: int) -> pd.DataFrame | None:
+    """Join multi-file relational datasets (Olist-style) into a single flat table.
+
+    Detects the central *orders* table and left-joins related tables
+    (customers, order_items, order_payments, order_reviews, products, sellers)
+    on shared key columns.
+    """
+    tables: dict[str, pd.DataFrame] = {}
+    for fpath in files:
+        df = _read_first_file(fpath, nrows)
+        if df is not None and not df.empty:
+            name = os.path.splitext(os.path.basename(fpath))[0]
+            tables[name] = df
+
+    if not tables:
+        return None
+
+    if len(tables) == 1:
+        return next(iter(tables.values()))
+
+    order_candidates = [k for k in tables if "order" in k.lower()]
+    cust_candidates = [k for k in tables if "customer" in k.lower()]
+
+    # Use orders table as the central fact table
+    central_name = order_candidates[0] if order_candidates else max(tables, key=lambda k: len(tables[k]))
+    central = tables[central_name]
+
+    # Helper: find shared key between two tables
+    def _find_key(t1: pd.DataFrame, t2: pd.DataFrame) -> list[str] | None:
+        shared = [c for c in t1.columns if c in t2.columns and c.endswith("_id")]
+        return shared if shared else None
+
+    for name, df in tables.items():
+        if name == central_name:
+            continue
+        key = _find_key(central, df)
+        if key:
+            central = central.merge(df, on=key, how="left", suffixes=("", f"_{name}"))
+
+    # If customers not already joined via key match, try explicit merge on customer_id
+    if cust_candidates and "customer" not in central_name.lower():
+        cust_name = cust_candidates[0]
+        if cust_name in tables and cust_name != central_name:
+            cust_df = tables[cust_name]
+            shared = [c for c in central.columns if c in cust_df.columns and c.endswith("_id")]
+            if not shared:
+                # Fallback: look for customer_id in central table
+                cid_candidates = [c for c in central.columns if "customer" in c.lower() and "_id" in c.lower()]
+                if cid_candidates and "customer_id" in cust_df.columns:
+                    central = central.merge(cust_df, left_on=cid_candidates[0], right_on="customer_id",
+                                            how="left", suffixes=("", "_cust"))
+
+    return central
 
 
 # ---------------------------------------------------------------------------
@@ -325,10 +457,23 @@ def import_with_mapping(
     src_churn = mapping.get("churn_probability")
     src_fraud = mapping.get("is_fraud")
 
-    for file_path in files:
-        df = _read_first_file(file_path, max_rows)
-        if df is None or df.empty:
-            continue
+    # For multi-file relational datasets, join them first
+    if len(files) > 1:
+        joined = _join_multi_file_dataset(files, max_rows)
+        if joined is not None and not joined.empty:
+            file_dfs = [joined]
+        else:
+            file_dfs = []
+    else:
+        file_dfs = files  # type: ignore[assignment]  # will iterate via _read_first_file below
+
+    for file_or_df in file_dfs:
+        if isinstance(file_or_df, pd.DataFrame):
+            df = file_or_df
+        else:
+            df = _read_first_file(file_or_df, max_rows)
+            if df is None or df.empty:
+                continue
 
         df = df.dropna(how="all").reset_index(drop=True)
         if src_cid:

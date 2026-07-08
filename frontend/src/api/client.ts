@@ -1,4 +1,4 @@
-import type { CaseDetail, CaseSummary, Metrics, Rule, FeedbackRecord, ReturnRequestPayload, ScoreResponse } from '../types';
+import type { CaseDetail, CaseSummary, Metrics, PaginatedResponse, Rule, FeedbackRecord, ReturnRequestPayload, ScoreResponse } from '../types';
 
 const API_URL = import.meta.env.DEV ? "/api" : (import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000/api");
 
@@ -19,10 +19,29 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   getMetrics: () => request<Metrics>('/dashboard/metrics'),
-  getCases: (query?: string) => request<CaseSummary[]>(`/cases${query ? `?q=${encodeURIComponent(query)}` : ''}`),
+  getCases: (skip?: number, limit?: number, query?: string) => {
+    const params = new URLSearchParams();
+    if (skip) params.set('skip', String(skip));
+    if (limit) params.set('limit', String(limit));
+    if (query) params.set('q', query);
+    const qs = params.toString();
+    return request<PaginatedResponse<CaseSummary>>(`/cases${qs ? `?${qs}` : ''}`);
+  },
   getCase: (id: string) => request<CaseDetail>(`/cases/${id}`),
-  getRules: () => request<Rule[]>('/rules'),
-  getFeedback: () => request<FeedbackRecord[]>('/feedback'),
+  getRules: (skip?: number, limit?: number) => {
+    const params = new URLSearchParams();
+    if (skip) params.set('skip', String(skip));
+    if (limit) params.set('limit', String(limit));
+    const qs = params.toString();
+    return request<PaginatedResponse<Rule>>(`/rules${qs ? `?${qs}` : ''}`);
+  },
+  getFeedback: (skip?: number, limit?: number) => {
+    const params = new URLSearchParams();
+    if (skip) params.set('skip', String(skip));
+    if (limit) params.set('limit', String(limit));
+    const qs = params.toString();
+    return request<PaginatedResponse<FeedbackRecord>>(`/feedback${qs ? `?${qs}` : ''}`);
+  },
   createRule: (payload: Partial<Rule>) =>
     request<Rule>('/rules', { method: 'POST', body: JSON.stringify(payload) }),
   updateRule: (id: string, payload: Partial<Rule>) =>

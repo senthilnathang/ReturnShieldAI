@@ -101,8 +101,8 @@ def create_return(payload: ScoreRequest, session: Session = Depends(get_session)
     )
 
 
-@router.get("/cases", response_model=list[CaseSummary])
-def list_cases(session: Session = Depends(get_session), q: str | None = None, decision: str | None = None, risk_level: str | None = None):
+@router.get("/cases")
+def list_cases(session: Session = Depends(get_session), q: str | None = None, decision: str | None = None, risk_level: str | None = None, skip: int = 0, limit: int = 25):
     stmt = (
         select(ReturnCase, ReturnRecord, Customer, Order)
         .join(ReturnRecord, ReturnCase.return_id == ReturnRecord.id)
@@ -111,7 +111,7 @@ def list_cases(session: Session = Depends(get_session), q: str | None = None, de
         .order_by(ReturnCase.created_at.desc())
     )
     rows = session.exec(stmt).all()
-    cases: list[CaseSummary] = []
+    all_cases: list[CaseSummary] = []
     for case, return_record, customer, order in rows:
         if q:
             haystack = " ".join(
@@ -130,7 +130,7 @@ def list_cases(session: Session = Depends(get_session), q: str | None = None, de
         if risk_level and case.risk_level != risk_level:
             continue
         customer_risk_score, _ = _customer_risk_details(session, customer)
-        cases.append(
+        all_cases.append(
             CaseSummary(
                 id=case.id,
                 return_id=case.return_id,
@@ -145,7 +145,9 @@ def list_cases(session: Session = Depends(get_session), q: str | None = None, de
                 created_at=case.created_at,
             )
         )
-    return cases
+    total = len(all_cases)
+    page = all_cases[skip:skip + limit]
+    return {"items": page, "total": total}
 
 
 @router.get("/cases/{case_id}", response_model=CaseDetail)
@@ -325,12 +327,14 @@ def dashboard_metrics(session: Session = Depends(get_session)):
     )
 
 
-@router.get("/rules", response_model=list[RuleRead])
-def get_rules(session: Session = Depends(get_session)):
-    return [RuleRead(**_serialize_rule(rule)) for rule in session.exec(select(Rule).order_by(Rule.created_at.asc())).all()]
+@router.get("/rules")
+def get_rules(session: Session = Depends(get_session), skip: int = 0, limit: int = 25):
+    all_rules = [RuleRead(**_serialize_rule(rule)) for rule in session.exec(select(Rule).order_by(Rule.created_at.asc())).all()]
+    total = len(all_rules)
+    return {"items": all_rules[skip:skip + limit], "total": total}
 
-@router.get("/feedback", response_model=list[FeedbackRead])
-def list_feedback(session: Session = Depends(get_session)):
+@router.get("/feedback")
+def list_feedback(session: Session = Depends(get_session), skip: int = 0, limit: int = 25):
     stmt = (
         select(AnalystFeedback, Customer, Order, ReturnCase)
         .join(ReturnCase, AnalystFeedback.case_id == ReturnCase.id)
@@ -340,9 +344,9 @@ def list_feedback(session: Session = Depends(get_session)):
         .order_by(AnalystFeedback.created_at.desc())
     )
     rows = session.exec(stmt).all()
-    items: list[FeedbackRead] = []
+    all_items: list[FeedbackRead] = []
     for feedback, customer, order, case in rows:
-        items.append(
+        all_items.append(
             FeedbackRead(
                 id=feedback.id,
                 case_id=feedback.case_id,
@@ -356,7 +360,9 @@ def list_feedback(session: Session = Depends(get_session)):
                 risk_level=case.risk_level,
             )
         )
-    return items
+    total = len(all_items)
+    page = all_items[skip:skip + limit]
+    return {"items": page, "total": total}
 
 
 @router.post("/rules", response_model=RuleRead)

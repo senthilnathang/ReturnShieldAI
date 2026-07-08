@@ -3,6 +3,7 @@ import { BrowserRouter, Link, Route, Routes, useLocation, useNavigate, useParams
 import { ArrowRight, Ban, CheckCircle2, Flag, Hand, ShieldAlert, ThumbsUp } from 'lucide-react';
 import { api } from './api/client';
 import { AppShell } from './components/Layout/AppShell';
+import { Pagination } from './components/Pagination';
 import { ConfirmDialog } from './components/ui/ConfirmDialog';
 import { ToastProvider, useToast } from './contexts/ToastContext';
 import type { CaseDetail, CaseSummary, FeedbackRecord, Metrics, ReturnRequestPayload, Rule, ScoreResponse } from './types';
@@ -349,6 +350,9 @@ function OverviewPage({ metrics, onReturnCreated }: { metrics?: Metrics; onRetur
 
 function CasesPage({ cases, filters, setFilters }: { cases: CaseSummary[]; filters: { q: string; decision: string; risk: string }; setFilters: Dispatch<SetStateAction<{ q: string; decision: string; risk: string }>> }) {
   const navigate = useNavigate();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
   const filtered = useMemo(() => {
     return cases
       .filter((item) => !filters.decision || item.decision === filters.decision)
@@ -360,9 +364,11 @@ function CasesPage({ cases, filters, setFilters }: { cases: CaseSummary[]; filte
       .sort((a, b) => b.risk_score - a.risk_score);
   }, [cases, filters]);
 
-  const highRisk = filtered.filter((item) => item.risk_level === 'HIGH').length;
-  const manual = filtered.filter((item) => item.decision === 'MANUAL_REVIEW').length;
-  const avgRisk = filtered.length ? (filtered.reduce((sum, item) => sum + item.risk_score, 0) / filtered.length).toFixed(1) : '0.0';
+  const totalFiltered = filtered.length;
+  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+  const highRisk = paginated.filter((item) => item.risk_level === 'HIGH').length;
+  const avgRisk = paginated.length ? (paginated.reduce((sum, item) => sum + item.risk_score, 0) / paginated.length).toFixed(1) : '0.0';
 
   return (
     <div className="space-y-4">
@@ -402,14 +408,14 @@ function CasesPage({ cases, filters, setFilters }: { cases: CaseSummary[]; filte
               <option value="HOLD_REFUND_HIGH_RISK">Hold refund</option>
             </select>
             <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-              <span>{filtered.length} visible cases</span>
+              <span>{totalFiltered} visible cases</span>
               <span className="mono">sorted by score</span>
             </div>
           </div>
         </Panel>
 
         <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-3">
-          <MetricCard label="Visible cases" value={filtered.length} />
+          <MetricCard label="Visible cases" value={totalFiltered} />
           <MetricCard label="High risk" value={highRisk} accent="text-red-700" />
           <MetricCard label="Avg. score" value={avgRisk} accent="text-blue-700" />
         </div>
@@ -417,7 +423,7 @@ function CasesPage({ cases, filters, setFilters }: { cases: CaseSummary[]; filte
 
       <Panel title="Case queue" subtitle="Cases are ordered by risk score, with the highest-risk items first.">
         <div className="space-y-3 md:hidden">
-          {filtered.map((item) => (
+          {paginated.map((item) => (
             <div key={item.id} className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -468,7 +474,7 @@ function CasesPage({ cases, filters, setFilters }: { cases: CaseSummary[]; filte
               </tr>
             </thead>
             <tbody>
-              {filtered.map((item) => (
+              {paginated.map((item) => (
                 <tr key={item.id} className="border-t border-white/6 bg-white hover:bg-slate-50">
                   <td className="px-4 py-3 font-mono text-xs text-slate-700">{item.id.slice(0, 8)}</td>
                   <td className="px-4 py-3 font-medium text-slate-900">{item.customer_name}</td>
@@ -490,6 +496,14 @@ function CasesPage({ cases, filters, setFilters }: { cases: CaseSummary[]; filte
             </tbody>
           </table>
         </div>
+
+        <Pagination
+          currentPage={page}
+          totalItems={totalFiltered}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </Panel>
     </div>
   );
@@ -1384,13 +1398,17 @@ function RulesPage({ rules, setRules }: { rules: Rule[]; setRules: Dispatch<SetS
 }
 
 function FeedbackPage({ feedback }: { feedback: FeedbackRecord[] }) {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
   const labelCounts = feedback.reduce<Record<string, number>>((acc, item) => {
     acc[item.confirmed_label] = (acc[item.confirmed_label] ?? 0) + 1;
     return acc;
   }, {});
-  const total = feedback.length || 1;
+  const totalItems = feedback.length || 1;
   const fraudLabels = labelCounts.confirmed_fraud ?? 0;
   const falsePositives = labelCounts.false_positive ?? 0;
+  const paginated = feedback.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <div className="space-y-4">
@@ -1417,7 +1435,7 @@ function FeedbackPage({ feedback }: { feedback: FeedbackRecord[] }) {
             </div>
             <div className="rounded-[22px] border border-blue-100 bg-blue-50 p-4">
               <div className="text-[11px] uppercase tracking-[0.24em] text-blue-700">Coverage</div>
-              <div className="mt-2 text-2xl font-semibold text-blue-800">{Math.round((feedback.length / total) * 100)}%</div>
+              <div className="mt-2 text-2xl font-semibold text-blue-800">{Math.round((feedback.length / totalItems) * 100)}%</div>
             </div>
           </div>
           <div className="mt-4 rounded-[22px] border border-slate-200 bg-white p-4">
@@ -1444,7 +1462,7 @@ function FeedbackPage({ feedback }: { feedback: FeedbackRecord[] }) {
 
       <Panel title="Analyst feedback" subtitle="Closed-loop labels that improve the model over time.">
         <div className="space-y-3 md:hidden">
-          {feedback.map((item) => (
+          {paginated.map((item) => (
             <div key={item.id} className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -1476,7 +1494,7 @@ function FeedbackPage({ feedback }: { feedback: FeedbackRecord[] }) {
               </tr>
             </thead>
             <tbody>
-              {feedback.map((item) => (
+              {paginated.map((item) => (
                 <tr key={item.id} className="border-t border-white/6 bg-white hover:bg-slate-50">
                   <td className="px-4 py-4 font-mono text-xs text-slate-700">{item.case_id.slice(0, 8)}</td>
                   <td className="px-4 py-4 font-medium text-slate-900">{item.customer_name}</td>
@@ -1490,6 +1508,14 @@ function FeedbackPage({ feedback }: { feedback: FeedbackRecord[] }) {
             </tbody>
           </table>
         </div>
+
+        <Pagination
+          currentPage={page}
+          totalItems={feedback.length}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </Panel>
     </div>
   );
@@ -2274,21 +2300,21 @@ function AppInner() {
   const navigate = useNavigate();
 
   const refreshData = async () => {
-    const [freshMetrics, freshCases] = await Promise.all([api.getMetrics(), api.getCases()]);
+    const [freshMetrics, freshCasesRes] = await Promise.all([api.getMetrics(), api.getCases()]);
     setMetrics(freshMetrics);
-    setCases(freshCases);
+    setCases(freshCasesRes.items);
   };
 
   useEffect(() => {
     refreshData().catch(() => undefined);
-    api.getRules().then(setRules).catch(() => undefined);
-    api.getFeedback().then(setFeedback).catch(() => undefined);
+    api.getRules().then((res) => setRules(res.items)).catch(() => undefined);
+    api.getFeedback().then((res) => setFeedback(res.items)).catch(() => undefined);
   }, []);
 
   const handleDecision = async (id: string, decision: string, notes: string) => {
     const confirmedLabel = decision === "Mark Confirmed Fraud" ? "confirmed_fraud" : decision === "Mark False Positive" ? "false_positive" : undefined;
     await api.updateDecision(id, { decision, notes, confirmed_label: confirmedLabel });
-    await Promise.all([refreshData(), api.getFeedback().then(setFeedback)]);
+    await Promise.all([refreshData(), api.getFeedback().then((res) => setFeedback(res.items))]);
   };
 
   return (

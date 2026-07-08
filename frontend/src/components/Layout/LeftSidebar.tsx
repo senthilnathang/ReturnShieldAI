@@ -1,5 +1,5 @@
-import { Link, NavLink } from 'react-router-dom';
-import { ArrowRight, Brain, Database, GitBranch, Layers3, LineChart, Monitor, Pin, PinOff, Search, Shield, Sparkles, SlidersHorizontal, Timer } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
+import { Brain, Database, GitBranch, Layers3, LineChart, Monitor, Pin, PinOff, Search, Shield, Sparkles, SlidersHorizontal } from 'lucide-react';
 
 const navSections = [
   {
@@ -76,17 +76,6 @@ export function LeftSidebar({
           </button>
         </div>
 
-        <div
-          className="mx-3 mb-3 rounded-lg border border-grey-border bg-grey-background-light p-3 transition-opacity duration-300"
-          style={{ opacity: expanded ? 1 : 0 }}
-        >
-          <div className="text-xs uppercase tracking-[0.24em] text-grey-secondary">Operations mode</div>
-          <div className="mt-1 text-s font-medium text-grey-primary">Analyst workspace</div>
-          <div className="mt-1 text-xs leading-4 text-grey-secondary">
-            Score, inspect, decide, and feed labels back into the fraud engine.
-          </div>
-        </div>
-
         <nav className="flex-1 overflow-y-auto px-1 scrollbar-gutter-stable">
           <div className="space-y-5">
             {navSections.map((section) => (
@@ -123,21 +112,7 @@ export function LeftSidebar({
           </div>
         </nav>
 
-        <div
-          className="mx-3 mb-3 rounded-lg border border-grey-border bg-grey-background-light p-3 transition-opacity duration-300"
-          style={{ opacity: expanded ? 1 : 0 }}
-        >
-          <div className="text-xs uppercase tracking-[0.24em] text-grey-secondary">Decision chain</div>
-          <div className="mt-1 text-xs leading-4 text-grey-primary">
-            Return request → rules → ML → explainability → analyst feedback
-          </div>
-          <Link
-            to="/investigations"
-            className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-purple-primary hover:text-purple-hover"
-          >
-            Open investigations <ArrowRight className="size-3" />
-          </Link>
-        </div>
+
       </div>
     </div>
   );

@@ -160,6 +160,11 @@ export type Metrics = {
 };
 
 
+export type PaginatedResponse<T> = {
+  items: T[];
+  total: number;
+};
+
 export type FeedbackRecord = {
   id: string;
   case_id: string;
