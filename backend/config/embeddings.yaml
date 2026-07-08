@@ -1,0 +1,28 @@
+active_model: all-MiniLM-L6-v2
+
+models:
+  all-MiniLM-L6-v2:
+    provider: sentence-transformers
+    dim: 384
+    cache: true
+
+  BAAI/bge-small-en-v1.5:
+    provider: sentence-transformers
+    dim: 384
+    cache: true
+
+  BAAI/bge-base-en-v1.5:
+    provider: sentence-transformers
+    dim: 768
+    cache: true
+
+  nvidia/NV-Embed-v2:
+    provider: sentence-transformers
+    dim: 4096
+    cache: true
+
+vector_store:
+  provider: faiss
+  index_path: models/vector_store/faiss.index
+  similarity: cosine
+  top_k: 20

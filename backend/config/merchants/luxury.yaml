@@ -1,0 +1,22 @@
+allowed_return_rate: 0.05
+high_risk_categories:
+  - luxury
+  - fine-jewelry
+  - high-end-watches
+risk_thresholds:
+  low: 30
+  medium: 60
+fusion_weights:
+  rule_score: 0.20
+  structured_ml_score: 0.30
+  nlp_score: 0.15
+  anomaly_score: 0.15
+  graph_risk_score: 0.15
+  customer_risk_score: 0.05
+rules:
+  enable_weight_mismatch: true
+  enable_fast_return: true
+  enable_high_value: true
+models:
+  structured_ml: "luxury-v1"
+  nlp: "default"

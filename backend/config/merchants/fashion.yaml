@@ -1,0 +1,22 @@
+allowed_return_rate: 0.15
+high_risk_categories:
+  - jewelry
+  - watches
+  - designer-handbags
+risk_thresholds:
+  low: 45
+  medium: 75
+fusion_weights:
+  rule_score: 0.20
+  structured_ml_score: 0.25
+  nlp_score: 0.25
+  anomaly_score: 0.10
+  graph_risk_score: 0.15
+  customer_risk_score: 0.05
+rules:
+  enable_weight_mismatch: true
+  enable_fast_return: true
+  enable_high_value: true
+models:
+  structured_ml: "fashion-v1"
+  nlp: "default"

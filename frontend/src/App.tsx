@@ -1612,6 +1612,324 @@ function CaseDetailRoute({ onAction, onLoaded }: { onAction: (decision: string, 
   return <InvestigationPage caseDetail={caseDetail} onAction={async (decision, notes) => { if (!id) return; await onAction(decision, notes, id); const refreshed = await api.getCase(id); setCaseDetail(refreshed); onLoaded?.(scoreResponseFromCase(refreshed)); }} />;
 }
 
+function FraudRingExplorerPage() {
+  const [graphData, setGraphData] = useState<Record<string, unknown> | null>(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    api.getGraphSummary().then(setGraphData).catch(() => setGraphData(null)).finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <div className="space-y-4">
+      <PageHeader eyebrow="Intelligence" title="Fraud Ring Explorer" subtitle="Connected identities, devices, and patterns across the fraud graph." />
+      <Panel title="Graph overview" subtitle="NetworkX-based fraud ring detection with community analysis">
+        {loading ? <div className="p-8 text-center text-grey-secondary">Loading graph data...</div> : !graphData ? (
+          <div className="p-8 text-center text-grey-secondary">No graph data available.</div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricCard label="Total nodes" value={Number(graphData.total_nodes ?? 0)} accent="text-purple-primary" />
+            <MetricCard label="Total edges" value={Number(graphData.total_edges ?? 0)} accent="text-orange-primary" />
+            <MetricCard label="Graph density" value={String(Number(graphData.graph_density ?? 0).toFixed(4))} />
+            <MetricCard label="Components" value={Number(graphData.components ?? 0)} accent="text-purple-primary" />
+            <MetricCard label="Largest cluster" value={Number(graphData.largest_cluster ?? 0)} accent="text-red-primary" />
+            <MetricCard label="Fraud customers" value={Number(graphData.confirmed_fraud_customers ?? 0)} accent="text-red-primary" />
+          </div>
+        )}
+      </Panel>
+      <Panel title="Connected clusters" subtitle="Customer clusters with 2+ linked accounts">
+        {graphData?.customer_clusters ? (
+          <div className="overflow-auto rounded-lg border border-grey-border">
+            <table className="min-w-full text-left text-sm">
+              <thead className="bg-grey-background text-grey-secondary">
+                <tr>
+                  <th className="px-4 py-3">#</th>
+                  <th className="px-4 py-3">Cluster size</th>
+                  <th className="px-4 py-3">Risk level</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(graphData.customer_clusters as number[]).map((size, i) => (
+                  <tr key={i} className="border-t border-grey-border bg-surface-card">
+                    <td className="px-4 py-3 font-mono text-xs text-grey-secondary">{i + 1}</td>
+                    <td className="px-4 py-3 font-medium text-grey-primary">{size}</td>
+                    <td className="px-4 py-3">
+                      <span className={`rounded-full px-2.5 py-1 text-xs ${
+                        size >= 5 ? 'bg-red-background text-red-primary' :
+                        size >= 3 ? 'bg-yellow-background text-yellow-primary' :
+                        'bg-green-background text-green-primary'
+                      }`}>
+                        {size >= 5 ? 'High' : size >= 3 ? 'Medium' : 'Low'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : <div className="p-4 text-sm text-grey-secondary">No clusters found.</div>}
+      </Panel>
+    </div>
+  );
+}
+
+function EvidenceExplorerPage() {
+  const [caseId, setCaseId] = useState("");
+  const [evidence, setEvidence] = useState<Array<Record<string, unknown>> | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const loadEvidence = async () => {
+    if (!caseId.trim()) return;
+    setLoading(true);
+    try {
+      const detail = await api.getCase(caseId.trim());
+      const resp = await fetch('/api/evidence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scores: { rule_score: detail.score_breakdown.rule_score, structured_ml_score: detail.score_breakdown.structured_ml_score, nlp_score: detail.score_breakdown.nlp_score, anomaly_score: detail.score_breakdown.anomaly_score },
+          reason_codes: detail.reason_codes,
+          advanced_signals: detail.advanced_signals,
+          customer_risk_score: detail.customer_risk_score,
+        }),
+      });
+      const data = await resp.json();
+      setEvidence(data.evidence);
+    } catch {
+      setEvidence(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const categories = evidence ? [...new Set(evidence.map((e) => e.category as string))] : [];
+
+  return (
+    <div className="space-y-4">
+      <PageHeader eyebrow="Intelligence" title="Evidence Explorer" subtitle="Drill into structured evidence for every fraud decision." />
+      <Panel title="Search evidence" subtitle="Enter a case ID to generate structured evidence.">
+        <div className="flex gap-3">
+          <input
+            value={caseId}
+            onChange={(e) => setCaseId(e.target.value)}
+            placeholder="Enter case UUID"
+            className="flex-1 rounded-lg border border-grey-border bg-grey-background px-4 py-3 text-sm outline-none focus:border-purple-border"
+          />
+          <button onClick={loadEvidence} disabled={loading || !caseId.trim()}
+            className="rounded-lg bg-purple-primary px-4 py-3 text-sm font-medium text-white hover:bg-purple-hover disabled:opacity-40">
+            {loading ? 'Loading...' : 'Load evidence'}
+          </button>
+        </div>
+      </Panel>
+
+      {evidence && (
+        <div className="space-y-4">
+          {categories.map((cat) => (
+            <Panel key={cat} title={cat.charAt(0).toUpperCase() + cat.slice(1)} subtitle={`${evidence.filter((e) => e.category === cat).length} items`}>
+              <div className="space-y-3">
+                {evidence.filter((e) => e.category === cat).map((item, i) => (
+                  <div key={i} className="flex items-start justify-between gap-4 rounded-lg border border-grey-border bg-grey-background-light p-4">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium text-grey-primary">{item.label as string}</div>
+                      <div className="mt-1 text-xs text-grey-secondary">{item.detail as string}</div>
+                      <div className="mt-1 text-[10px] text-grey-placeholder">Source: {item.source as string} &middot; {item.timestamp as string}</div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-sm font-semibold text-grey-primary">{Number(item.confidence ?? 0).toFixed(0)}%</div>
+                      <div className="text-[10px] text-grey-secondary">confidence</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+          ))}
+        </div>
+      )}
+      {evidence && evidence.length === 0 && (
+        <Panel title="No evidence" subtitle="No structured evidence was generated for this case.">
+          <div className="p-4 text-sm text-grey-secondary">The case scoring did not produce any evidence items above threshold.</div>
+        </Panel>
+      )}
+    </div>
+  );
+}
+
+function TimelineExplorerPage() {
+  const { id } = useParams();
+  const [events, setEvents] = useState<Array<{ label: string; time: string; type: string; detail: string }> | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!id) return;
+    api.getCaseTimeline(id).then((data) => setEvents(data.events)).catch(() => setEvents(null)).finally(() => setLoading(false));
+  }, [id]);
+
+  const typeColors: Record<string, string> = {
+    customer: 'border-purple-border bg-purple-background text-purple-primary',
+    order: 'border-blue-96 bg-blue-96 text-blue-58',
+    return: 'border-yellow-border bg-yellow-background text-yellow-primary',
+    communication: 'border-purple-border-light bg-purple-background text-purple-primary',
+    decision: 'border-green-border bg-green-background text-green-primary',
+    alert: 'border-red-border bg-red-background text-red-primary',
+    review: 'border-grey-border bg-grey-background text-grey-primary',
+  };
+
+  return (
+    <div className="space-y-4">
+      <PageHeader eyebrow="Intelligence" title="Timeline Explorer" subtitle="Fraud event timeline for case {id}." />
+      <Panel title="Case timeline" subtitle={`${events?.length ?? 0} events`}>
+        {loading ? <div className="p-8 text-center text-grey-secondary">Loading timeline...</div> :
+         !events ? <div className="p-4 text-sm text-grey-secondary">Timeline not available.</div> : (
+          <div className="relative">
+            <div className="absolute left-4 top-0 h-full w-px bg-grey-border" />
+            <div className="space-y-4">
+              {events.map((event, i) => (
+                <div key={i} className="relative pl-12">
+                  <span className={`absolute left-2.5 flex size-3 -translate-x-1/2 items-center justify-center rounded-full ring-2 ring-white ${typeColors[event.type] ?? 'bg-grey-background'}`} />
+                  <div className="rounded-lg border border-grey-border bg-surface-card p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${typeColors[event.type] ?? 'bg-grey-background text-grey-secondary'}`}>{event.type}</span>
+                        <div className="mt-1 text-sm font-medium text-grey-primary">{event.label}</div>
+                        {event.detail && <div className="mt-1 text-xs text-grey-secondary">{event.detail}</div>}
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <div className="text-xs text-grey-placeholder">{new Date(event.time).toLocaleDateString()}</div>
+                        <div className="text-[10px] text-grey-placeholder">{new Date(event.time).toLocaleTimeString()}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </Panel>
+    </div>
+  );
+}
+
+function PatternLibraryPage() {
+  const [patterns, setPatterns] = useState<Array<Record<string, unknown>>>([]);
+  const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
+  useEffect(() => {
+    api.getPatterns().then((data) => setPatterns(data.patterns)).catch(() => undefined);
+  }, []);
+
+  const severityColor = (s: string) =>
+    s === 'CRITICAL' ? 'bg-red-background text-red-primary' :
+    s === 'HIGH' ? 'bg-red-background text-red-primary' :
+    s === 'MEDIUM' ? 'bg-yellow-background text-yellow-primary' :
+    'bg-green-background text-green-primary';
+
+  return (
+    <div className="space-y-4">
+      <PageHeader eyebrow="Intelligence" title="Fraud Pattern Library" subtitle={`${patterns.length} reusable fraud patterns for detection and response.`} />
+      <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+        <Panel title="Patterns" subtitle="Click a pattern for details.">
+          <div className="space-y-3">
+            {patterns.map((p) => (
+              <button key={p.id as string} onClick={() => setSelected(p)}
+                className={`w-full rounded-lg border p-4 text-left transition ${
+                  selected?.id === p.id ? 'border-purple-border bg-purple-background' : 'border-grey-border bg-surface-card hover:bg-grey-background-light'
+                }`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-medium text-grey-primary">{p.name as string}</div>
+                    <div className="mt-0.5 text-xs text-grey-secondary">{p.description as string}</div>
+                  </div>
+                  <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-medium ${severityColor(p.severity as string)}`}>
+                    {p.severity as string}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </Panel>
+        <Panel title="Pattern details" subtitle={selected ? (selected.name as string) : 'Select a pattern'}>
+          {selected ? (
+            <div className="space-y-4">
+              <div>
+                <div className="text-xs uppercase tracking-[0.2em] text-grey-secondary">ID</div>
+                <div className="mt-1 font-mono text-sm text-grey-primary">{selected.id as string}</div>
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-[0.2em] text-grey-secondary">Rules</div>
+                <div className="mt-2 space-y-1">
+                  {(selected.rules as string[]).map((r, i) => (
+                    <div key={i} className="rounded bg-grey-background px-3 py-1.5 font-mono text-xs text-grey-primary">{r}</div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-[0.2em] text-grey-secondary">Recommended actions</div>
+                <div className="mt-2 space-y-1">
+                  {(selected.recommended_actions as string[]).map((a, i) => (
+                    <div key={i} className="flex items-center gap-2 text-sm text-grey-primary">
+                      <span className="size-1.5 rounded-full bg-purple-primary" />
+                      {a}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {(selected.ml_features as string[]).length > 0 && (
+                <div>
+                  <div className="text-xs uppercase tracking-[0.2em] text-grey-secondary">ML Features</div>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {(selected.ml_features as string[]).map((f, i) => (
+                      <span key={i} className="rounded-full bg-grey-background px-2 py-0.5 text-xs text-grey-secondary">{f}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="p-4 text-sm text-grey-secondary">Select a pattern to view details.</div>
+          )}
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+function GraphAnalyticsPage() {
+  const [graphData, setGraphData] = useState<Record<string, unknown> | null>(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    api.getGraphSummary().then(setGraphData).catch(() => setGraphData(null)).finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <div className="space-y-4">
+      <PageHeader eyebrow="Analytics" title="Graph Analytics" subtitle="Fraud network topology and community analysis." />
+      <div className="grid gap-4 sm:grid-cols-3">
+        <MetricCard label="Network size" value={String(Number(graphData?.total_nodes ?? 0) + Number(graphData?.total_edges ?? 0))} accent="text-purple-primary" subtext="nodes + edges" />
+        <MetricCard label="Avg. cluster size" value={graphData?.customer_clusters ? (graphData.customer_clusters as number[]).length > 0 ? ((graphData.customer_clusters as number[]).reduce((a, b) => a + b, 0) / (graphData.customer_clusters as number[]).length).toFixed(1) : '0' : '—'} accent="text-orange-primary" />
+        <MetricCard label="Fraud concentration" value={graphData ? `${(Number(graphData.confirmed_fraud_customers ?? 0) / Math.max(Number(graphData.total_nodes ?? 1), 1) * 100).toFixed(1)}%` : '—'} />
+      </div>
+      <Panel title="Metrics" subtitle="Graph topology statistics">
+        <div className="space-y-3">
+          {[
+            ["Total nodes", "Network nodes (customers, orders, returns, entities)", graphData?.total_nodes],
+            ["Total edges", "Connections between entities", graphData?.total_edges],
+            ["Graph density", "How connected the network is (0-1)", graphData?.graph_density],
+            ["Connected components", "Disconnected subgraphs", graphData?.components],
+            ["Largest cluster", "Biggest connected customer group", graphData?.largest_cluster],
+            ["Fraud customers", "Confirmed fraud accounts", graphData?.confirmed_fraud_customers],
+          ].map(([label, desc, value]) => (
+            <div key={label as string} className="flex items-center justify-between gap-4 rounded-lg border border-grey-border bg-grey-background-light p-4">
+              <div>
+                <div className="text-sm font-medium text-grey-primary">{label as string}</div>
+                <div className="mt-0.5 text-xs text-grey-secondary">{desc as string}</div>
+              </div>
+              <div className="shrink-0 text-lg font-semibold text-grey-primary">{String(value ?? '—')}</div>
+            </div>
+          ))}
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
 function AppInner() {
   const [metrics, setMetrics] = useState<Metrics>();
   const [cases, setCases] = useState<CaseSummary[]>([]);
@@ -1651,6 +1969,11 @@ function AppInner() {
         <Route path="/investigations/:id" element={<CaseDetailRoute onAction={handleDecision} onLoaded={setLastScore} />} />
         <Route path="/rules" element={<RulesPage rules={rules} setRules={setRules} />} />
         <Route path="/feedback" element={<FeedbackPage feedback={feedback} />} />
+        <Route path="/fraud-ring" element={<FraudRingExplorerPage />} />
+        <Route path="/evidence" element={<EvidenceExplorerPage />} />
+        <Route path="/timeline/:id" element={<TimelineExplorerPage />} />
+        <Route path="/patterns" element={<PatternLibraryPage />} />
+        <Route path="/graph-analytics" element={<GraphAnalyticsPage />} />
       </Routes>
     </AppShell>
   );

@@ -1,5 +1,5 @@
 import { Link, NavLink } from 'react-router-dom';
-import { ArrowRight, Brain, Layers3, LineChart, Pin, PinOff, Shield, Sparkles, SlidersHorizontal } from 'lucide-react';
+import { ArrowRight, Brain, GitBranch, Layers3, LineChart, Pin, PinOff, Search, Shield, Sparkles, SlidersHorizontal, Timer } from 'lucide-react';
 
 const navSections = [
   {
@@ -15,13 +15,22 @@ const navSections = [
     items: [
       { to: '/decision-engine', label: 'Decision Engine', icon: Brain },
       { to: '/enhancements', label: 'AI / ML', icon: Sparkles },
+      { to: '/fraud-ring', label: 'Fraud Ring', icon: GitBranch },
+      { to: '/patterns', label: 'Patterns', icon: Search },
+      { to: '/evidence', label: 'Evidence', icon: Shield },
+    ],
+  },
+  {
+    label: 'Analytics',
+    items: [
+      { to: '/graph-analytics', label: 'Graph Analytics', icon: GitBranch },
+      { to: '/feedback', label: 'Feedback', icon: Sparkles },
     ],
   },
   {
     label: 'Control',
     items: [
       { to: '/rules', label: 'Rules', icon: SlidersHorizontal },
-      { to: '/feedback', label: 'Feedback', icon: Sparkles },
     ],
   },
 ] as const;

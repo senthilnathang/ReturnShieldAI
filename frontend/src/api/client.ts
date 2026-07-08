@@ -33,4 +33,34 @@ export const api = {
     request<ScoreResponse>('/returns', { method: 'POST', body: JSON.stringify(payload) }),
   scoreReturn: (payload: unknown) =>
     request<ScoreResponse>('/returns/score', { method: 'POST', body: JSON.stringify(payload) }),
+
+  // New module API endpoints
+  searchEmbeddings: (text: string, k?: number) =>
+    request<{ results: Array<{ score: number; metadata: Record<string, unknown> }> }>('/embeddings/search', { method: 'POST', body: JSON.stringify({ text, k }) }),
+  indexEmbeddings: () =>
+    request<{ indexed: number }>('/embeddings/index', { method: 'POST' }),
+  getEmbeddingStats: () =>
+    request<{ size: number; active_model: string }>('/embeddings/stats'),
+  getGraphSummary: () =>
+    request<Record<string, unknown>>('/graph/summary'),
+  getCaseGraph: (id: string) =>
+    request<Record<string, unknown>>(`/graph/case/${id}`),
+  getCaseTimeline: (id: string) =>
+    request<{ events: Array<{ label: string; time: string; type: string; detail: string }> }>(`/timeline/${id}`),
+  getInvestigationReport: (id: string) =>
+    request<Record<string, unknown>>(`/investigation/${id}`),
+  getPatterns: () =>
+    request<{ patterns: Array<Record<string, unknown>>; total: number }>('/patterns'),
+  matchPatterns: (data: Record<string, unknown>) =>
+    request<{ matches: Array<Record<string, unknown>> }>('/patterns/match', { method: 'POST', body: JSON.stringify(data) }),
+  getMerchants: () =>
+    request<{ merchants: string[] }>('/merchants'),
+  getMerchantConfig: (id: string) =>
+    request<Record<string, unknown>>(`/merchants/${id}`),
+  getModels: () =>
+    request<Record<string, unknown>>('/models'),
+  getMonitoringPerformance: () =>
+    request<Record<string, unknown>>('/monitoring/performance'),
+  evaluateAlerts: (data: Record<string, unknown>) =>
+    request<{ alerts_fired: Array<Record<string, unknown>> }>('/alerts/evaluate', { method: 'POST', body: JSON.stringify(data) }),
 };

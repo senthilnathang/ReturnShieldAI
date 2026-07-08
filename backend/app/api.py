@@ -18,6 +18,7 @@ from backend.app.ml.sample_data_generator import seed_database
 from backend.app.ml.train import ModelBundle, train_models
 from backend.app.models import AnalystFeedback, Customer, FraudScore, ModelTrainingRun, Order, ReturnCase, ReturnRecord, Rule
 from backend.app.rules.engine import RuleEngine
+from backend.app.modules.routes import router as modules_router
 from backend.app.schemas.common import (
     AnalystDecisionPayload,
     CaseDetail,
@@ -405,6 +406,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(router)
+    app.include_router(modules_router)
 
     @app.on_event("startup")
     def startup():
