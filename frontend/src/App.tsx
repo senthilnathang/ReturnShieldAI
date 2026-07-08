@@ -348,7 +348,7 @@ function OverviewPage({ metrics, onReturnCreated }: { metrics?: Metrics; onRetur
 }
 
 
-function CasesPage({ cases, filters, setFilters }: { cases: CaseSummary[]; filters: { q: string; decision: string; risk: string }; setFilters: Dispatch<SetStateAction<{ q: string; decision: string; risk: string }>> }) {
+function CasesPage({ cases = [], filters, setFilters }: { cases?: CaseSummary[]; filters: { q: string; decision: string; risk: string }; setFilters: Dispatch<SetStateAction<{ q: string; decision: string; risk: string }>> }) {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
@@ -823,7 +823,7 @@ function AdvancedSignalsPanelView({ advancedSignals }: { advancedSignals: CaseDe
   );
 }
 
-function EnhancementsPage({ latest, cases }: { latest?: ScoreResponse; cases: CaseSummary[] }) {
+function EnhancementsPage({ latest, cases = [] }: { latest?: ScoreResponse; cases?: CaseSummary[] }) {
   const flaggedCases = cases.filter((item) => item.risk_level !== 'LOW').slice(0, 6);
   const signalCards = [
     {
@@ -1259,7 +1259,7 @@ function DecisionEnginePage({ latest }: { latest?: ScoreResponse }) {
   );
 }
 
-function RulesPage({ rules, setRules }: { rules: Rule[]; setRules: Dispatch<SetStateAction<Rule[]>> }) {
+function RulesPage({ rules = [], setRules }: { rules?: Rule[]; setRules: Dispatch<SetStateAction<Rule[]>> }) {
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string>();
   const [creating, setCreating] = useState(false);
@@ -1397,7 +1397,7 @@ function RulesPage({ rules, setRules }: { rules: Rule[]; setRules: Dispatch<SetS
   );
 }
 
-function FeedbackPage({ feedback }: { feedback: FeedbackRecord[] }) {
+function FeedbackPage({ feedback = [] }: { feedback?: FeedbackRecord[] }) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
 
@@ -1539,7 +1539,7 @@ function scoreResponseFromCase(detail: CaseDetail): ScoreResponse {
   };
 }
 
-function InvestigationHome({ cases }: { cases: CaseSummary[] }) {
+function InvestigationHome({ cases = [] }: { cases?: CaseSummary[] }) {
   const navigate = useNavigate();
   const spotlight = cases.filter((item) => item.risk_level !== "LOW").slice(0, 6);
   const highRisk = spotlight.filter((item) => item.risk_level === 'HIGH').length;
