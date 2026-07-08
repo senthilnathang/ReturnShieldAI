@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2020"],
+    "types": ["node"],
+    "allowSyntheticDefaultImports": true
+  },
+  "files": ["vite.config.ts", "vite-node-globals.d.ts"]
+}

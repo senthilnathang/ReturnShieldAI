@@ -1,0 +1,30 @@
+[
+  {
+    "name": "High return frequency",
+    "description": "Customer has unusually high return frequency in the last 30 days.",
+    "condition": "customer_return_count_30d >= 5",
+    "score": 20,
+    "enabled": true
+  },
+  {
+    "name": "Weight mismatch",
+    "description": "Returned package weight differs from the original shipment.",
+    "condition": "abs(expected_weight - returned_weight) > 0.5",
+    "score": 25,
+    "enabled": true
+  },
+  {
+    "name": "Fast return after delivery",
+    "description": "Return was created very soon after delivery.",
+    "condition": "hours_after_delivery < 24",
+    "score": 15,
+    "enabled": true
+  },
+  {
+    "name": "High value product",
+    "description": "High-value items are reviewed more aggressively.",
+    "condition": "product_value > 20000",
+    "score": 10,
+    "enabled": true
+  }
+]

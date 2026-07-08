@@ -1,0 +1,1589 @@
+import { useEffect, useMemo, useState, type ChangeEvent, type Dispatch, type ReactNode, type SetStateAction } from 'react';
+import { BrowserRouter, Link, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { ArrowRight } from 'lucide-react';
+import { api } from './api/client';
+import { AppShell } from './components/Layout/AppShell';
+import type { CaseDetail, CaseSummary, FeedbackRecord, Metrics, ReturnRequestPayload, Rule, ScoreResponse } from './types';
+
+const badgeTone = (risk: string) =>
+  risk === 'HIGH'
+    ? 'bg-red-background text-red-primary ring-1 ring-red-border'
+    : risk === 'MEDIUM'
+      ? 'bg-blue-96 text-blue-58 ring-1 ring-blue-96'
+      : 'bg-green-background text-green-primary ring-1 ring-green-border';
+
+function MetricCard({ label, value, subtext, accent }: { label: string; value: string | number; subtext?: string; accent?: string }) {
+  return (
+    <div className="border border-slate-200 bg-white rounded-[22px] p-4 sm:p-5 shadow-sm">
+      <div className="text-[11px] uppercase tracking-[0.24em] text-slate-500 sm:text-xs">{label}</div>
+      <div className={`mt-2 text-2xl font-semibold sm:mt-3 sm:text-3xl ${accent ?? ''}`}>{value}</div>
+      {subtext ? <div className="mt-2 text-xs text-slate-600 sm:text-sm">{subtext}</div> : null}
+    </div>
+  );
+}
+
+function PageHeader({ eyebrow, title, subtitle, action }: { eyebrow?: string; title: string; subtitle: string; action?: ReactNode }) {
+  return (
+    <div className="mb-4 rounded-[24px] border border-slate-200 bg-white/90 px-5 py-4 shadow-sm backdrop-blur-sm sm:px-6 sm:py-5">
+      {eyebrow ? <div className="text-[11px] uppercase tracking-[0.28em] text-slate-500">{eyebrow}</div> : null}
+      <div className="mt-2 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div className="max-w-3xl">
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">{title}</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-600 sm:text-base">{subtitle}</p>
+        </div>
+        {action ? <div className="flex shrink-0 items-center gap-2">{action}</div> : null}
+      </div>
+    </div>
+  );
+}
+
+function Panel({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
+  return (
+    <section className="border border-slate-200 bg-white relative overflow-hidden rounded-[22px] p-4 sm:rounded-[24px] sm:p-5 shadow-sm">
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-300/60 to-transparent" />
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+        <div>
+          <h2 className="text-base font-semibold text-slate-900 sm:text-lg">{title}</h2>
+          {subtitle ? <p className="mt-1 text-xs text-slate-600 sm:text-sm">{subtitle}</p> : null}
+        </div>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function SparkBar({ value, max, tone = 'bg-blue-300' }: { value: number; max: number; tone?: string }) {
+  const pct = Math.max(6, (value / Math.max(max, 1)) * 100);
+  return <div className={`h-full rounded-full ${tone}`} style={{ width: `${pct}%` }} />;
+}
+
+function SimpleChart({ data, tone }: { data: Array<{ label: string; value: number }>; tone?: string }) {
+  const max = Math.max(...data.map((item) => item.value), 1);
+  return (
+    <div className="space-y-3">
+      {data.map((item) => (
+        <div key={item.label} className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)_4.5rem] items-center gap-3">
+          <div className="truncate text-sm text-slate-600">{item.label}</div>
+          <div className="h-2 rounded-full bg-slate-50">
+            <SparkBar value={item.value} max={max} tone={tone} />
+          </div>
+          <div className="flex justify-end">
+            <span className="rounded-full bg-slate-100 px-2.5 py-1 font-mono text-xs text-slate-700">{item.value}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function buildSampleReturnRequest(kind: 'low' | 'high'): ReturnRequestPayload {
+  const now = new Date();
+  const deliveryDate = new Date(now.getTime() - (kind === 'high' ? 12 : 72) * 60 * 60 * 1000);
+  return {
+    customer: {
+      name: kind === 'high' ? 'Mia Patel' : 'Jordan Lee',
+      email: kind === 'high' ? 'mia.patel@example.com' : 'jordan.lee@example.com',
+      phone: '+1-202-555-0199',
+      account_age_days: kind === 'high' ? 21 : 408,
+      address: kind === 'high' ? '88 Fraud Lane' : '14 Cedar Street',
+      device_id: kind === 'high' ? 'device-fraud' : 'device-1042',
+      lifetime_orders: kind === 'high' ? 9 : 42,
+      lifetime_returns: kind === 'high' ? 6 : 2,
+    },
+    order: {
+      sku: kind === 'high' ? 'SKU-1002' : 'SKU-2008',
+      product_name: kind === 'high' ? 'Designer Jacket' : 'Compact Camera',
+      category: kind === 'high' ? 'apparel' : 'electronics',
+      product_value: kind === 'high' ? 420 : 189,
+      expected_weight: kind === 'high' ? 0.8 : 0.7,
+      payment_method: 'card',
+      payment_method_risk_score: kind === 'high' ? 82 : 12,
+      delivery_date: deliveryDate.toISOString(),
+      delivery_status: 'delivered',
+    },
+    return_data: {
+      return_reason: kind === 'high' ? 'I want a refund immediately, or I will open a chargeback.' : 'Purchased wrong color, would like to return it.',
+      chat_transcript: kind === 'high' ? 'Customer demanded immediate refund and mentioned chargeback.' : 'Customer asked for a standard return with no issues.',
+      email_text: kind === 'high' ? 'Please refund now or I will dispute this charge.' : 'Hello support, I would like to return this item.',
+      returned_weight: kind === 'high' ? 0.12 : 0.69,
+      condition_reported: kind === 'high' ? 'empty_box' : 'unused',
+      delivery_photo_url: kind === 'high' ? 'https://images.example.com/delivery-photo-1.jpg' : '',
+      return_photo_url: kind === 'high' ? 'https://images.example.com/return-photo-9.jpg' : '',
+      shipping_label_text: kind === 'high' ? 'Ship to 88 Fraud Lane, Mia Patel, SKU-1002' : 'Ship to 14 Cedar Street, Jordan Lee, SKU-2008',
+      ocr_text: kind === 'high' ? 'Return label: 88 Fraud Lane, SKU-1002, empty box' : 'Return label: 14 Cedar Street, SKU-2008, unused',
+
+    },
+  };
+}
+
+function ReturnIntakePanel({ onCreated }: { onCreated: (result: ScoreResponse) => Promise<void> }) {
+  const [draft, setDraft] = useState(() => JSON.stringify(buildSampleReturnRequest('low'), null, 2));
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string>();
+  const [result, setResult] = useState<ScoreResponse>();
+
+  const loadSample = (kind: 'low' | 'high') => setDraft(JSON.stringify(buildSampleReturnRequest(kind), null, 2));
+
+  const handleUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setDraft(await file.text());
+  };
+
+  const submit = async () => {
+    setLoading(true);
+    setError(undefined);
+    try {
+      const payload = JSON.parse(draft) as ReturnRequestPayload;
+      const scored = await api.createReturn(payload);
+      setResult(scored);
+      await onCreated(scored);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Invalid return request JSON');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Panel title="Return intake" subtitle="Paste JSON or upload a file, then submit the request for scoring and case creation.">
+      <div className="grid gap-3 xl:grid-cols-[0.9fr_1.1fr]">
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => loadSample('low')} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">Load normal sample</button>
+            <button onClick={() => loadSample('high')} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">Load suspicious sample</button>
+            <label className="cursor-pointer rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+              Upload JSON
+              <input type="file" accept="application/json" className="hidden" onChange={handleUpload} />
+            </label>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+            The intake API accepts the same customer, order, and return payloads used by the scoring engine.
+          </div>
+        </div>
+        <div>
+          <textarea
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            className="min-h-[320px] w-full rounded-2xl border border-slate-200 bg-white p-4 font-mono text-xs text-slate-700 outline-none"
+          />
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <button onClick={submit} disabled={loading} className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-medium text-slate-950 disabled:opacity-60">
+              {loading ? 'Scoring...' : 'Submit return'}
+            </button>
+            {result ? <span className={`rounded-full px-3 py-1 text-xs ${badgeTone(result.risk_level)}`}>{result.decision} {result.risk_score.toFixed(1)}</span> : null}
+          </div>
+          {error ? <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
+function OverviewPage({ metrics, onReturnCreated }: { metrics?: Metrics; onReturnCreated: (result: ScoreResponse) => Promise<void> }) {
+  const totals = metrics?.totals;
+  return (
+    <div className="space-y-4">
+      <PageHeader
+        eyebrow="ReturnShield AI"
+        title="Overview"
+        subtitle="Score incoming return requests, track operational risk, and review the active fraud queue."
+        action={<Link to="/investigations" className="rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800">Open investigations</Link>}
+      />
+      <div className="grid gap-4 xl:grid-cols-[1.35fr_0.85fr]">
+        <section className="glass-strong rounded-[32px] p-5 soft-ring sm:p-6">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-2xl">
+              <div className="text-[11px] uppercase tracking-[0.28em] text-slate-500">Today's signal</div>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
+                Return intake is scored by rules, structured ML, NLP, anomaly detection, and fraud-ring features.
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-slate-600 sm:text-base">
+                Submit a return request to generate a risk score, decision, explanation, and analyst case record.
+              </p>
+            </div>
+            <div className="rounded-[22px] border border-slate-200 bg-slate-950 px-4 py-4 text-white shadow-sm">
+              <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400">Decision chain</div>
+              <div className="mt-2 text-lg font-semibold">4-layer fusion engine</div>
+              <div className="mt-3 space-y-2 text-sm text-slate-300">
+                <div className="flex items-center justify-between gap-6">
+                  <span>Rules</span>
+                  <span className="font-mono text-slate-100">30%</span>
+                </div>
+                <div className="flex items-center justify-between gap-6">
+                  <span>Structured ML</span>
+                  <span className="font-mono text-slate-100">30%</span>
+                </div>
+                <div className="flex items-center justify-between gap-6">
+                  <span>NLP</span>
+                  <span className="font-mono text-slate-100">25%</span>
+                </div>
+                <div className="flex items-center justify-between gap-6">
+                  <span>Anomaly / graph</span>
+                  <span className="font-mono text-slate-100">15%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="text-[11px] uppercase tracking-[0.24em] text-slate-500">Today</div>
+              <div className="mt-2 text-2xl font-semibold text-slate-950">{totals?.total_returns_today ?? '—'}</div>
+              <div className="mt-2 text-xs text-slate-600">Returns scored since midnight</div>
+            </div>
+            <div className="rounded-[24px] border border-red-100 bg-red-50 p-4 shadow-sm">
+              <div className="text-[11px] uppercase tracking-[0.24em] text-red-600">High risk</div>
+              <div className="mt-2 text-2xl font-semibold text-red-700">{totals?.high_risk_cases ?? '—'}</div>
+              <div className="mt-2 text-xs text-red-700/80">Cases routed to senior review</div>
+            </div>
+            <div className="rounded-[24px] border border-blue-100 bg-blue-50 p-4 shadow-sm">
+              <div className="text-[11px] uppercase tracking-[0.24em] text-blue-700">Manual review</div>
+              <div className="mt-2 text-2xl font-semibold text-blue-800">{totals?.manual_review_cases ?? '—'}</div>
+              <div className="mt-2 text-xs text-blue-800/80">Analyst queue waiting</div>
+            </div>
+            <div className="rounded-[24px] border border-emerald-100 bg-emerald-50 p-4 shadow-sm">
+              <div className="text-[11px] uppercase tracking-[0.24em] text-emerald-700">Auto approve</div>
+              <div className="mt-2 text-2xl font-semibold text-emerald-700">{totals?.auto_approved_returns ?? '—'}</div>
+              <div className="mt-2 text-xs text-emerald-700/80">Low-risk returns released</div>
+            </div>
+          </div>
+        </section>
+
+        <Panel title="Queue posture" subtitle="Current operating signals from the return intake stream">
+          <div className="space-y-4">
+            <div className="rounded-[22px] border border-slate-200 bg-slate-50 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-[11px] uppercase tracking-[0.24em] text-slate-500">Estimated fraud prevented</div>
+                  <div className="mt-2 text-2xl font-semibold text-slate-950">${(totals?.estimated_fraud_prevented ?? 0).toLocaleString()}</div>
+                </div>
+                <div className="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-600 ring-1 ring-slate-200">
+                  Weighted by decision path
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-[22px] border border-slate-200 bg-white p-4">
+                <div className="text-[11px] uppercase tracking-[0.24em] text-slate-500">Average risk</div>
+                <div className="mt-2 text-2xl font-semibold text-slate-950">{totals?.average_risk_score ?? '—'}</div>
+                <div className="mt-2 text-xs text-slate-600">Across all scored returns</div>
+              </div>
+              <div className="rounded-[22px] border border-slate-200 bg-white p-4">
+                <div className="text-[11px] uppercase tracking-[0.24em] text-slate-500">Decision spread</div>
+                <div className="mt-2 text-2xl font-semibold text-slate-950">{totals ? totals.total_returns_today : '—'}</div>
+                <div className="mt-2 text-xs text-slate-600">Total cases currently visible</div>
+              </div>
+            </div>
+            <div className="rounded-[22px] border border-slate-200 bg-white p-4">
+              <div className="text-[11px] uppercase tracking-[0.24em] text-slate-500">Signal mix</div>
+              <div className="mt-3 space-y-2 text-sm text-slate-700">
+                <div className="flex items-center justify-between"><span>Rules</span><span className="font-mono">30%</span></div>
+                <div className="flex items-center justify-between"><span>ML</span><span className="font-mono">30%</span></div>
+                <div className="flex items-center justify-between"><span>NLP</span><span className="font-mono">25%</span></div>
+                <div className="flex items-center justify-between"><span>Graph / anomaly</span><span className="font-mono">15%</span></div>
+              </div>
+            </div>
+          </div>
+        </Panel>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
+        <MetricCard label="Total returns today" value={totals?.total_returns_today ?? '—'} />
+        <MetricCard label="High-risk cases" value={totals?.high_risk_cases ?? '—'} accent="text-red-700" />
+        <MetricCard label="Manual review" value={totals?.manual_review_cases ?? '—'} accent="text-blue-700" />
+        <MetricCard label="Auto-approved" value={totals?.auto_approved_returns ?? '—'} accent="text-emerald-700" />
+        <MetricCard label="Fraud prevented" value={`$${(totals?.estimated_fraud_prevented ?? 0).toLocaleString()}`} />
+        <MetricCard label="Avg. risk score" value={totals?.average_risk_score ?? '—'} />
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+        <ReturnIntakePanel onCreated={onReturnCreated} />
+        <Panel title="Detection posture" subtitle="How the scoring pipeline behaves before an analyst opens the case">
+          <div className="space-y-3">
+            <div className="rounded-[22px] border border-slate-200 bg-slate-50 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm text-slate-600">Structured features</span>
+                <span className="font-mono text-sm text-slate-800">Behavior + device + payment</span>
+              </div>
+            </div>
+            <div className="rounded-[22px] border border-slate-200 bg-slate-50 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm text-slate-600">Text analysis</span>
+                <span className="font-mono text-sm text-slate-800">Reason, chat, email</span>
+              </div>
+            </div>
+            <div className="rounded-[22px] border border-slate-200 bg-slate-50 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm text-slate-600">Graph features</span>
+                <span className="font-mono text-sm text-slate-800">Shared address, device, refund account</span>
+              </div>
+            </div>
+          </div>
+        </Panel>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Panel title="Risk distribution" subtitle="How the current queue is distributed across score bands">
+          <SimpleChart data={metrics?.charts?.risk_distribution ?? []} tone="bg-blue-300" />
+        </Panel>
+        <Panel title="Cases by status" subtitle="Operational state of the current queue">
+          <SimpleChart data={metrics?.charts?.cases_by_status ?? []} tone="bg-teal-300" />
+        </Panel>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Panel title="Fraud types" subtitle="Dominant fraud patterns detected in the data">
+          <SimpleChart data={metrics?.charts?.fraud_types ?? []} tone="bg-red-300" />
+        </Panel>
+        <Panel title="Return value at risk" subtitle="Value at risk by decision path">
+          <SimpleChart data={metrics?.charts?.return_value_at_risk ?? []} tone="bg-sky-300" />
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+
+function CasesPage({ cases, filters, setFilters }: { cases: CaseSummary[]; filters: { q: string; decision: string; risk: string }; setFilters: Dispatch<SetStateAction<{ q: string; decision: string; risk: string }>> }) {
+  const navigate = useNavigate();
+  const filtered = useMemo(() => {
+    return cases
+      .filter((item) => !filters.decision || item.decision === filters.decision)
+      .filter((item) => !filters.risk || item.risk_level === filters.risk)
+      .filter((item) => {
+        const haystack = `${item.customer_name} ${item.product_name} ${item.return_reason}`.toLowerCase();
+        return !filters.q || haystack.includes(filters.q.toLowerCase());
+      })
+      .sort((a, b) => b.risk_score - a.risk_score);
+  }, [cases, filters]);
+
+  const highRisk = filtered.filter((item) => item.risk_level === 'HIGH').length;
+  const manual = filtered.filter((item) => item.decision === 'MANUAL_REVIEW').length;
+  const avgRisk = filtered.length ? (filtered.reduce((sum, item) => sum + item.risk_score, 0) / filtered.length).toFixed(1) : '0.0';
+
+  return (
+    <div className="space-y-4">
+      <PageHeader
+        eyebrow="Operations"
+        title="Case queue"
+        subtitle="Review returns, sort by score, and filter the active queue."
+      />
+
+      <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+        <Panel title="Queue controls" subtitle="Search, filter, and monitor the active queue without leaving the page.">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <input
+              value={filters.q}
+              onChange={(event) => setFilters((value) => ({ ...value, q: event.target.value }))}
+              placeholder="Search customer, order, return reason"
+              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none placeholder:text-slate-500"
+            />
+            <select
+              value={filters.risk}
+              onChange={(event) => setFilters((value) => ({ ...value, risk: event.target.value }))}
+              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none"
+            >
+              <option value="">All risk levels</option>
+              <option value="LOW">Low</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="HIGH">High</option>
+            </select>
+            <select
+              value={filters.decision}
+              onChange={(event) => setFilters((value) => ({ ...value, decision: event.target.value }))}
+              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none"
+            >
+              <option value="">All decisions</option>
+              <option value="AUTO_APPROVE">Auto approve</option>
+              <option value="MANUAL_REVIEW">Manual review</option>
+              <option value="HOLD_REFUND_HIGH_RISK">Hold refund</option>
+            </select>
+            <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              <span>{filtered.length} visible cases</span>
+              <span className="mono">sorted by score</span>
+            </div>
+          </div>
+        </Panel>
+
+        <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-3">
+          <MetricCard label="Visible cases" value={filtered.length} />
+          <MetricCard label="High risk" value={highRisk} accent="text-red-700" />
+          <MetricCard label="Avg. score" value={avgRisk} accent="text-blue-700" />
+        </div>
+      </div>
+
+      <Panel title="Case queue" subtitle="Cases are ordered by risk score, with the highest-risk items first.">
+        <div className="space-y-3 md:hidden">
+          {filtered.map((item) => (
+            <div key={item.id} className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold text-slate-900">{item.customer_name}</div>
+                  <div className="mt-1 text-xs text-slate-500">{item.product_name} · Case {item.id.slice(0, 8)}</div>
+                </div>
+                <div className="text-right">
+                  <div className={`inline-flex rounded-full px-2.5 py-1 text-xs ${badgeTone(item.risk_level)}`}>{item.risk_level}</div>
+                  <div className="mt-2 font-mono text-sm text-slate-700">{item.risk_score.toFixed(1)}</div>
+                </div>
+              </div>
+              <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">{item.return_reason}</div>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  <span className="text-slate-400">Decision</span>
+                  <div className="mt-1 font-medium text-slate-800">{item.decision}</div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  <span className="text-slate-400">Status</span>
+                  <div className="mt-1 font-medium text-slate-800">{item.status}</div>
+                </div>
+              </div>
+              <button
+                onClick={() => navigate(`/investigations/${item.id}`)}
+                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600/15 px-3 py-3 text-sm text-blue-700 ring-1 ring-blue-200"
+              >
+                Investigate
+                <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="hidden overflow-auto rounded-[28px] border border-slate-200 md:block">
+          <table className="min-w-full text-left text-sm">
+            <thead className="sticky top-0 bg-slate-50 text-slate-600">
+              <tr>
+                <th className="px-4 py-3">Case ID</th>
+                <th className="px-4 py-3">Customer</th>
+                <th className="px-4 py-3">Product</th>
+                <th className="px-4 py-3">Return Reason</th>
+                <th className="px-4 py-3">Cust. Risk</th>
+                <th className="px-4 py-3">Risk Score</th>
+                <th className="px-4 py-3">Risk Level</th>
+                <th className="px-4 py-3">Decision</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((item) => (
+                <tr key={item.id} className="border-t border-white/6 bg-white hover:bg-slate-50">
+                  <td className="px-4 py-3 font-mono text-xs text-slate-700">{item.id.slice(0, 8)}</td>
+                  <td className="px-4 py-3 font-medium text-slate-900">{item.customer_name}</td>
+                  <td className="px-4 py-3 text-slate-700">{item.product_name}</td>
+                  <td className="px-4 py-3 text-slate-700">{item.return_reason}</td>
+                  <td className="px-4 py-3 font-mono text-slate-700">{item.customer_risk_score.toFixed(1)}</td>
+                  <td className="px-4 py-3 font-mono text-slate-800">{item.risk_score.toFixed(1)}</td>
+                  <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs ${badgeTone(item.risk_level)}`}>{item.risk_level}</span></td>
+                  <td className="px-4 py-3 text-slate-700">{item.decision}</td>
+                  <td className="px-4 py-3 text-slate-600">{item.status}</td>
+                  <td className="px-4 py-3">
+                    <button onClick={() => navigate(`/investigations/${item.id}`)} className="inline-flex items-center gap-2 rounded-2xl bg-blue-600/15 px-3 py-2 text-xs text-blue-700 ring-1 ring-blue-200">
+                      Investigate
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+function TimelinePanel({ timeline }: { timeline: Array<{ label: string; time: string }> }) {
+  const steps = timeline.map((step, index) => ({ ...step, index }));
+  return (
+    <Panel title="Timeline" subtitle="A compact view of how the return moved through the fraud workflow.">
+      <div className="relative">
+        <div className="absolute left-3 top-3 h-[calc(100%-1.5rem)] w-px bg-gradient-to-b from-blue-300 via-slate-200 to-transparent" />
+        <div className="space-y-3">
+          {steps.map((step) => (
+            <div key={step.label} className="relative pl-11">
+              <span className="absolute left-0 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-white text-[11px] font-semibold text-blue-700 ring-1 ring-blue-200">
+                {step.index + 1}
+              </span>
+              <div className="rounded-[24px] border border-slate-200 bg-slate-50 px-4 py-3 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-medium text-slate-900">{step.label}</div>
+                    <div className="mt-1 text-xs text-slate-500">Decision checkpoint</div>
+                  </div>
+                  <div className="rounded-full bg-white px-2.5 py-1 font-mono text-[11px] text-slate-600 ring-1 ring-slate-200">
+                    {new Date(step.time).toLocaleString()}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
+function ExplainabilityPanelView({ explainability }: { explainability: CaseDetail["explainability"] }) {
+  const sortedSignals = [...explainability.signal_contributions].sort((a, b) => b.impact - a.impact);
+  const strongestSignal = sortedSignals[0];
+  const strongestPositive = explainability.top_positive_drivers[0];
+  const strongestMitigation = explainability.top_negative_drivers[0];
+  const totalImpact = sortedSignals.reduce((sum, signal) => sum + signal.impact, 0) || 1;
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-3xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-4">
+        <div className="text-xs uppercase tracking-[0.22em] text-blue-700">Why flagged</div>
+        <p className="mt-2 text-sm leading-6 text-slate-700">{explainability.why_flagged_summary}</p>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Dominant signal</div>
+          <div className="mt-2 text-sm font-medium text-slate-900">{strongestSignal?.label ?? "No signal"}</div>
+          <div className="mt-1 text-xs text-slate-500">{strongestSignal?.detail ?? "No dominant contributor was detected."}</div>
+        </div>
+        <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Strongest driver</div>
+          <div className="mt-2 text-sm font-medium text-slate-900">{strongestPositive?.label ?? "No positive driver"}</div>
+          <div className="mt-1 text-xs text-slate-500">{strongestPositive?.detail ?? "No additional risk driver stood out."}</div>
+        </div>
+        <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Mitigation</div>
+          <div className="mt-2 text-sm font-medium text-slate-900">{strongestMitigation?.label ?? "No mitigation"}</div>
+          <div className="mt-1 text-xs text-slate-500">{strongestMitigation?.detail ?? "No clear mitigating factors were present."}</div>
+        </div>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <div className="space-y-3">
+          {sortedSignals.map((signal) => (
+            <div key={signal.label} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <div>
+                  <div className="font-medium text-slate-900">{signal.label}</div>
+                  <div className="mt-1 text-xs text-slate-500">{signal.detail}</div>
+                </div>
+                <div className="text-right">
+                  <div className="font-mono text-sm text-slate-800">{signal.impact.toFixed(1)}</div>
+                  <div className="text-[11px] uppercase tracking-[0.2em] text-slate-400">{Math.round((signal.impact / totalImpact) * 100)}%</div>
+                </div>
+              </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                <div className={`h-full rounded-full ${signal.label === strongestSignal?.label ? "bg-rose-400" : "bg-blue-300"}`} style={{ width: `${Math.max(10, (signal.impact / totalImpact) * 100)}%` }} />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="space-y-4">
+          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+            <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Top positive drivers</div>
+            <div className="mt-3 space-y-3">
+              {explainability.top_positive_drivers.length ? explainability.top_positive_drivers.map((driver) => (
+                <div key={driver.label} className="rounded-2xl border border-blue-200 bg-white px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-sm font-medium text-slate-800">{driver.label}</div>
+                    <div className="font-mono text-sm text-blue-700">+{driver.impact.toFixed(1)}</div>
+                  </div>
+                  <div className="mt-1 text-xs text-slate-500">{driver.detail}</div>
+                </div>
+              )) : (
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">No additional risk drivers surfaced.</div>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+            <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Top negative drivers</div>
+            <div className="mt-3 space-y-3">
+              {explainability.top_negative_drivers.length ? explainability.top_negative_drivers.map((driver) => (
+                <div key={driver.label} className="rounded-2xl border border-emerald-200 bg-white px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-sm font-medium text-slate-800">{driver.label}</div>
+                    <div className="font-mono text-sm text-emerald-700">-{driver.impact.toFixed(1)}</div>
+                  </div>
+                  <div className="mt-1 text-xs text-slate-500">{driver.detail}</div>
+                </div>
+              )) : (
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">No clear mitigating factors were detected.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FraudRingPanelView({ graph }: { graph?: Record<string, unknown> }) {
+  const ringRisk = Number(graph?.ring_risk_score ?? graph?.score ?? 0);
+  const componentSize = Number(graph?.component_size ?? graph?.ring_size ?? 0);
+  const connectedCustomers = Number(graph?.connected_customers_count ?? 0);
+  const sharedAddress = Number(graph?.shared_address_count ?? graph?.shared_address_accounts ?? 0);
+  const sharedDevice = Number(graph?.shared_device_count ?? graph?.shared_device_accounts ?? 0);
+  const sharedPayment = Number(graph?.shared_payment_count ?? graph?.shared_payment_orders ?? 0);
+  const sharedRefund = Number(graph?.shared_refund_account_count ?? 0);
+  const textCluster = Number(graph?.text_similarity_cluster_size ?? 0);
+  const fraudNeighbors = Number(graph?.fraud_neighbor_count ?? 0);
+  const shortestPath = Number(graph?.shortest_path_to_fraud ?? 0);
+  const highRiskRatio = Number(graph?.high_risk_neighbor_ratio ?? 0);
+  const sameSku = Number(graph?.same_sku_return_cluster_count ?? 0);
+  const samePickup = Number(graph?.same_pickup_location_count ?? 0);
+  const velocity = Number(graph?.return_velocity_in_component ?? 0);
+  const signals = (graph?.signals ?? []) as string[];
+  const reasons = (graph?.reason_codes ?? []) as string[];
+
+  return (
+    <div className="grid gap-4 xl:grid-cols-[1.08fr_0.92fr]">
+      <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Fraud ring graph</div>
+            <div className="mt-2 text-sm font-medium text-slate-900">Connected identities, payment proxies, and repeated return stories.</div>
+          </div>
+          <div className="rounded-2xl bg-rose-50 px-4 py-3 text-right ring-1 ring-rose-100">
+            <div className="text-[10px] uppercase tracking-[0.22em] text-rose-600">Ring risk</div>
+            <div className="mt-1 text-2xl font-semibold text-rose-700">{ringRisk.toFixed(0)}</div>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {[
+            ["Ring size", componentSize],
+            ["Connected customers", connectedCustomers],
+            ["Fraud neighbors", fraudNeighbors],
+            ["Shared address", sharedAddress],
+            ["Shared device", sharedDevice],
+            ["Shared payment", sharedPayment],
+          ].map(([label, value]) => (
+            <div key={label as string} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500">{label as string}</div>
+              <div className="mt-2 text-lg font-semibold text-slate-900">{Number(value).toFixed(0)}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+            <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Graph paths</div>
+            <div className="mt-3 space-y-2 text-sm text-slate-700">
+              <div className="rounded-2xl bg-white px-3 py-2 ring-1 ring-slate-200">Customer → Address → Other customers</div>
+              <div className="rounded-2xl bg-white px-3 py-2 ring-1 ring-slate-200">Customer → Device → Other customers</div>
+              <div className="rounded-2xl bg-white px-3 py-2 ring-1 ring-slate-200">Customer → Refund proxy → Other customers</div>
+              <div className="rounded-2xl bg-white px-3 py-2 ring-1 ring-slate-200">Customer → Text pattern → Other customers</div>
+            </div>
+          </div>
+          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+            <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Cluster metrics</div>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-sm text-slate-700">
+              <div className="rounded-2xl bg-white px-3 py-2 ring-1 ring-slate-200"><div className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Text cluster</div><div className="mt-1 font-semibold text-slate-900">{textCluster}</div></div>
+              <div className="rounded-2xl bg-white px-3 py-2 ring-1 ring-slate-200"><div className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Same SKU cluster</div><div className="mt-1 font-semibold text-slate-900">{sameSku}</div></div>
+              <div className="rounded-2xl bg-white px-3 py-2 ring-1 ring-slate-200"><div className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Same pickup</div><div className="mt-1 font-semibold text-slate-900">{samePickup}</div></div>
+              <div className="rounded-2xl bg-white px-3 py-2 ring-1 ring-slate-200"><div className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Shortest path</div><div className="mt-1 font-semibold text-slate-900">{shortestPath}</div></div>
+            </div>
+            <div className="mt-3 rounded-2xl bg-white px-3 py-2 text-sm text-slate-700 ring-1 ring-slate-200">High-risk neighbor ratio: {highRiskRatio.toFixed(2)}</div>
+            <div className="mt-2 rounded-2xl bg-white px-3 py-2 text-sm text-slate-700 ring-1 ring-slate-200">Return velocity in component: {velocity.toFixed(2)}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Ring evidence</div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {[`Ring risk ${ringRisk.toFixed(0)}`, `Component ${componentSize}`, `Neighbors ${connectedCustomers}`, `Fraud neighbors ${fraudNeighbors}`].map((chip) => (
+              <span key={chip} className="rounded-full bg-rose-50 px-3 py-1 text-xs text-rose-700 ring-1 ring-rose-100">{chip}</span>
+            ))}
+          </div>
+          <div className="mt-4 space-y-2 text-sm text-slate-700">
+            {reasons.length ? reasons.map((reason) => <div key={reason} className="rounded-2xl bg-slate-50 px-3 py-2">{reason}</div>) : <div className="rounded-2xl bg-slate-50 px-3 py-2 text-slate-500">No ring-specific reasons were emitted.</div>}
+          </div>
+        </div>
+        <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Signals</div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {signals.length ? signals.map((signal) => <span key={signal} className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">{signal}</span>) : <span className="text-sm text-slate-500">No additional graph signals.</span>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AdvancedSignalsPanelView({ advancedSignals }: { advancedSignals: CaseDetail["advanced_signals"] }) {
+  const behavioral = (advancedSignals.behavioral_ml ?? {}) as Record<string, unknown>;
+  const nlp = (advancedSignals.nlp_detection ?? {}) as Record<string, unknown>;
+  const image = (advancedSignals.image_verification ?? {}) as Record<string, unknown>;
+  const graph = (advancedSignals.graph_fraud ?? {}) as Record<string, unknown>;
+  const investigator = (advancedSignals.llm_investigator ?? {}) as Record<string, unknown>;
+  const familyScores = (behavioral.family_scores ?? {}) as Record<string, number>;
+  const modelMode = String(nlp.model_mode ?? "heuristic");
+  const nlpSignals = (nlp.signals ?? {}) as Record<string, number>;
+  const behavioralReasons = (behavioral.reason_codes ?? []) as string[];
+  const flaggedPhrases = (nlp.flagged_phrases ?? []) as string[];
+  const imageSignals = (image.signals ?? []) as string[];
+  const graphSignals = (graph.signals ?? []) as string[];
+  const investigatorEvidence = (investigator.evidence ?? []) as string[];
+
+  return (
+    <div className="grid gap-4 xl:grid-cols-2">
+      <div className="space-y-4">
+        <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Behavioral ML ensemble</div>
+          <div className="mt-2 text-sm font-medium text-slate-900">{String(behavioral.summary ?? "Behavioral models combined for return-risk scoring.")}</div>
+          <div className="mt-3 space-y-2">
+            {Object.entries(familyScores).map(([name, value]) => (
+              <div key={name} className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-slate-600">{name}</span>
+                <span className="font-mono text-slate-800">{Number(value).toFixed(1)}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {behavioralReasons.slice(0, 4).map((reason) => (
+              <span key={reason} className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">{reason}</span>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="text-xs uppercase tracking-[0.22em] text-slate-500">NLP fraud detection</div>
+          <div className="mt-2 text-sm font-medium text-slate-900">{String(nlp.summary ?? "Semantic fraud analysis across return text and support messages.")}</div>
+          <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600">
+            {Object.entries(nlpSignals).map(([key, value]) => (
+              <div key={key} className="rounded-2xl bg-slate-50 px-3 py-2">
+                <div className="uppercase tracking-[0.18em] text-slate-400">{key}</div>
+                <div className="mt-1 font-mono text-slate-800">{Number(value).toFixed(1)}</div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {flaggedPhrases.slice(0, 4).map((phrase) => (
+              <span key={phrase} className="rounded-full bg-blue-50 px-3 py-1 text-xs text-blue-700">{phrase}</span>
+            ))}
+          </div>
+          <div className="mt-3 text-xs text-slate-500">Mode: {modelMode}</div>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Image and OCR verification</div>
+          <div className="mt-2 text-sm font-medium text-slate-900">{String(image.summary ?? "No image evidence supplied.")}</div>
+          <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600">
+            <div className="rounded-2xl bg-slate-50 px-3 py-2">
+              <div className="uppercase tracking-[0.18em] text-slate-400">OCR match</div>
+              <div className="mt-1 font-mono text-slate-800">{Number(image.ocr_match ?? 0).toFixed(1)}</div>
+            </div>
+            <div className="rounded-2xl bg-slate-50 px-3 py-2">
+              <div className="uppercase tracking-[0.18em] text-slate-400">Photo similarity</div>
+              <div className="mt-1 font-mono text-slate-800">{Number(image.photo_similarity ?? 0).toFixed(1)}</div>
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {imageSignals.slice(0, 4).map((signal) => (
+              <span key={signal} className="rounded-full bg-sky-50 px-3 py-1 text-xs text-sky-700">{signal}</span>
+            ))}
+          </div>
+        </div>
+
+        <FraudRingPanelView graph={graph} />
+
+        <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="text-xs uppercase tracking-[0.22em] text-slate-500">AI investigator</div>
+          <div className="mt-2 text-sm leading-6 text-slate-700">{String(investigator.summary ?? "No investigator summary available.")}</div>
+          <div className="mt-3 text-xs uppercase tracking-[0.22em] text-slate-500">Recommendation</div>
+          <div className="mt-1 text-sm font-medium text-slate-900">{String(investigator.recommendation ?? "Review manually")}</div>
+          <div className="mt-3 space-y-2">
+            {investigatorEvidence.slice(0, 4).map((item) => (
+              <div key={item} className="rounded-2xl bg-slate-50 px-3 py-2 text-xs text-slate-600">{item}</div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EnhancementsPage({ latest, cases }: { latest?: ScoreResponse; cases: CaseSummary[] }) {
+  const flaggedCases = cases.filter((item) => item.risk_level !== 'LOW').slice(0, 6);
+  const signalCards = [
+    {
+      title: 'Behavioral ML',
+      description: 'RandomForest, GradientBoosting, and HistGradientBoosting blend structured return behavior into one fraud signal.',
+      accent: 'from-sky-50 to-slate-50',
+      metric: latest?.score_breakdown.structured_ml_score?.toFixed(1) ?? '—',
+      details: latest?.advanced_signals?.behavioral_ml as Record<string, unknown> | undefined,
+    },
+    {
+      title: 'NLP fraud detection',
+      description: 'Text analysis flags urgency, manipulation, refund pressure, repeated scripts, and empty-box claims.',
+      accent: 'from-blue-50 to-white',
+      metric: latest?.score_breakdown.nlp_score?.toFixed(1) ?? '—',
+      details: latest?.advanced_signals?.nlp_detection as Record<string, unknown> | undefined,
+    },
+    {
+      title: 'Image / OCR verification',
+      description: 'Optional photo and label evidence are compared against the shipment record for mismatch signals.',
+      accent: 'from-emerald-50 to-white',
+      metric: String((latest?.advanced_signals?.image_verification as Record<string, unknown> | undefined)?.score ?? '—'),
+      details: latest?.advanced_signals?.image_verification as Record<string, unknown> | undefined,
+    },
+    {
+      title: 'Fraud ring graph',
+      description: 'Shared address, device, payment, and phone patterns surface coordinated fraud rings.',
+      accent: 'from-rose-50 to-white',
+      metric: String((latest?.advanced_signals?.graph_fraud as Record<string, unknown> | undefined)?.score ?? '—'),
+      details: latest?.advanced_signals?.graph_fraud as Record<string, unknown> | undefined,
+    },
+    {
+      title: 'AI investigator',
+      description: 'A compact evidence summary turns signals into analyst-ready next actions.',
+      accent: 'from-slate-50 to-white',
+      metric: String((latest?.advanced_signals?.llm_investigator as Record<string, unknown> | undefined)?.risk_level ?? '—'),
+      details: latest?.advanced_signals?.llm_investigator as Record<string, unknown> | undefined,
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <PageHeader
+        eyebrow="Decision intelligence"
+        title="Decision engine"
+        subtitle="See how rules, ML, NLP, and anomaly detection fuse into the final fraud decision."
+      />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="Latest final score" value={latest?.risk_score?.toFixed(1) ?? '—'} accent="text-blue-700" />
+        <MetricCard label="Decision" value={latest?.decision ?? '—'} />
+        <MetricCard label="Risk level" value={latest?.risk_level ?? '—'} />
+        <MetricCard label="Cases with elevated risk" value={flaggedCases.length} accent="text-sky-700" />
+      </div>
+
+      <Panel title="AI / ML capabilities" subtitle="Dedicated view for the fraud intelligence stack used by ReturnShield AI.">
+        <div className="grid gap-4 xl:grid-cols-2">
+          {signalCards.map((card) => (
+            <div key={card.title} className={`rounded-[24px] border border-slate-200 bg-gradient-to-br ${card.accent} p-4 shadow-sm`}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-xs uppercase tracking-[0.24em] text-slate-500">Module</div>
+                  <div className="mt-1 text-base font-semibold text-slate-900">{card.title}</div>
+                </div>
+                <div className="rounded-2xl bg-white px-3 py-2 text-right shadow-sm ring-1 ring-slate-200">
+                  <div className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Score</div>
+                  <div className="mt-1 text-lg font-semibold text-slate-900">{card.metric}</div>
+                </div>
+              </div>
+              <p className="mt-3 text-sm leading-6 text-slate-600">{card.description}</p>
+              <div className="mt-4 rounded-2xl border border-white/70 bg-white/80 p-3 backdrop-blur-sm">
+                <div className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Evidence snapshot</div>
+                <div className="mt-2 grid gap-2 md:grid-cols-2">
+                  {card.details ? Object.entries(card.details).slice(0, 4).map(([key, value]) => (
+                    <div key={key} className="rounded-2xl bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                      <div className="uppercase tracking-[0.18em] text-slate-400">{key.replace(/_/g, ' ')}</div>
+                      <div className="mt-1 font-medium text-slate-800">{Array.isArray(value) ? `${value.length} items` : typeof value === 'object' ? 'available' : String(value)}</div>
+                    </div>
+                  )) : (
+                    <div className="rounded-2xl bg-slate-50 px-3 py-2 text-xs text-slate-500">No detail payload on the latest case yet.</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Panel>
+
+      <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+        <Panel title="Recent elevated cases" subtitle="Quick access to the cases most likely to need analyst attention.">
+          <div className="space-y-3">
+            {flaggedCases.length ? flaggedCases.map((item) => (
+              <Link key={item.id} to={`/cases/${item.id}`} className="block rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 transition hover:-translate-y-0.5 hover:bg-white hover:shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900">{item.customer_name}</div>
+                    <div className="mt-1 text-sm text-slate-600">{item.product_name}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className={`inline-flex rounded-full px-2.5 py-1 text-xs ${badgeTone(item.risk_level)}`}>{item.risk_level}</div>
+                    <div className="mt-2 font-mono text-sm text-slate-700">{item.risk_score.toFixed(1)}</div>
+                  </div>
+                </div>
+                <div className="mt-3 text-xs text-slate-500">{item.return_reason}</div>
+              </Link>
+            )) : (
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">No elevated cases available yet.</div>
+            )}
+          </div>
+        </Panel>
+
+        <Panel title="Decisioning overview" subtitle="The AI stack feeds into a single fraud decision and analyst workflow.">
+          <div className="space-y-3 text-sm text-slate-700">
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">Structured features, text signals, anomaly detection, and rule scores are fused into one return risk score.</div>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">Explainability converts the score into reason codes, evidence summaries, and action guidance for analysts.</div>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">Feedback from approve / reject / fraud labels is stored for future retraining.</div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link to="/decision-engine" className="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-medium text-slate-950">Open decision engine</Link>
+            <Link to="/cases" className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-800">Open case queue</Link>
+          </div>
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+function InvestigationPage({ caseDetail, onAction }: { caseDetail?: CaseDetail; onAction?: (decision: string, notes: string) => Promise<void> }) {
+  const [notes, setNotes] = useState("");
+  const [busy, setBusy] = useState(false);
+  if (!caseDetail) {
+    return <Panel title="Investigations" subtitle="Select a case from the queue to inspect the evidence chain.">Loading…</Panel>;
+  }
+
+  const returnData = caseDetail.return_data ?? caseDetail.return;
+  const graph = caseDetail.advanced_signals?.graph_fraud as Record<string, unknown> | undefined;
+  const explanationChips = caseDetail.reason_codes.slice(0, 4);
+  const tracePreview = caseDetail.decision_trace.slice(0, 4);
+  const handle = async (decision: string) => {
+    if (!onAction) return;
+    setBusy(true);
+    await onAction(decision, notes);
+    setBusy(false);
+  };
+
+  return (
+    <div className="space-y-4">
+      <Panel title={`Case ${caseDetail.id.slice(0, 8)}`} subtitle={caseDetail.explanation}>
+        <div className="grid gap-4 xl:grid-cols-[1.3fr_0.7fr]">
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-2">
+              <span className={`rounded-full px-3 py-1 text-xs ${badgeTone(caseDetail.risk_level)}`}>{caseDetail.risk_level} risk</span>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">Customer risk {caseDetail.customer_risk_score.toFixed(1)}</span>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">{caseDetail.decision}</span>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">{caseDetail.status}</span>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+              <MetricCard label="Final score" value={caseDetail.risk_score.toFixed(1)} accent="text-blue-700" />
+              <MetricCard label="Customer risk" value={caseDetail.customer_risk_score.toFixed(1)} accent="text-sky-700" />
+              <MetricCard label="Rule score" value={caseDetail.score_breakdown.rule_score.toFixed(1)} />
+              <MetricCard label="Structured" value={caseDetail.score_breakdown.structured_ml_score.toFixed(1)} />
+              <MetricCard label="NLP score" value={caseDetail.score_breakdown.nlp_score.toFixed(1)} />
+            </div>
+          </div>
+          <div className="rounded-[28px] border border-slate-200 bg-slate-950 p-4 text-white shadow-[0_20px_50px_rgba(15,23,42,0.18)]">
+            <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400">Recommended action</div>
+            <div className="mt-2 text-lg font-semibold text-white">{caseDetail.recommended_action}</div>
+            <div className="mt-4 space-y-3 text-sm text-slate-300">
+              {tracePreview.map((item) => (
+                <div key={item.stage} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                  <span>{item.stage}</span>
+                  <span className="mono text-slate-100">{String(item.value)}</span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-xs leading-5 text-slate-300">
+              Analyst notes are stored back into feedback so future model runs can learn from the decision.
+            </div>
+          </div>
+        </div>
+      </Panel>
+
+      <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+        <Panel title="Evidence wall" subtitle="Customer, order, return, and reason-code evidence in one place.">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+              <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Customer</div>
+              <div className="mt-1 font-medium text-slate-900">{caseDetail.customer.name}</div>
+              <div className="mt-2 text-xs text-slate-500">{caseDetail.customer.email}</div>
+            </div>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+              <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Product</div>
+              <div className="mt-1 font-medium text-slate-900">{caseDetail.order.product_name}</div>
+              <div className="mt-2 text-xs text-slate-500">SKU {caseDetail.order.sku}</div>
+            </div>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+              <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Expected weight</div>
+              <div className="mt-1 font-medium text-slate-900">{caseDetail.order.expected_weight} kg</div>
+            </div>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+              <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Returned weight</div>
+              <div className="mt-1 font-medium text-slate-900">{returnData?.returned_weight ?? '—'} kg</div>
+            </div>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 sm:col-span-2">
+              <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Return reason</div>
+              <div className="mt-1 font-medium text-slate-900">{returnData?.return_reason ?? caseDetail.return_reason}</div>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-4">
+            <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Reason codes</div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {explanationChips.length ? explanationChips.map((reason) => (
+                <span key={reason} className="rounded-full bg-blue-50 px-3 py-1 text-xs text-blue-700 ring-1 ring-blue-100">{reason}</span>
+              )) : <span className="text-sm text-slate-500">No reason codes available.</span>}
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+            <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Analyst summary</div>
+            <div className="mt-2 text-sm leading-6 text-slate-700">{caseDetail.explanation}</div>
+          </div>
+        </Panel>
+
+        <Panel title="Decision trail" subtitle="Trace the path from intake to final score and decision.">
+          <div className="space-y-3">
+            {caseDetail.decision_trace.map((item, index) => (
+              <div key={item.stage} className="rounded-[22px] border border-slate-200 bg-slate-50 p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Step {index + 1}</div>
+                    <div className="mt-1 text-sm font-medium text-slate-900">{item.stage}</div>
+                  </div>
+                  <div className="rounded-full bg-white px-2.5 py-1 font-mono text-[11px] text-slate-600 ring-1 ring-slate-200">
+                    {String(item.value)}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-4">
+            <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Analyst actions</div>
+            <textarea value={notes} onChange={(event) => setNotes(event.target.value)} className="mt-3 min-h-[140px] w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm outline-none placeholder:text-slate-500" placeholder="Add notes for retraining" />
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {[['Approve Return', 'AUTO_APPROVE'], ['Reject Return', 'REJECT_RETURN'], ['Hold Refund', 'HOLD_REFUND_HIGH_RISK'], ['Escalate', 'MANUAL_REVIEW'], ['Confirmed Fraud', 'Mark Confirmed Fraud'], ['False Positive', 'Mark False Positive']].map(([label, decision]) => (
+                <button key={decision} disabled={busy} onClick={() => handle(decision)} className="rounded-2xl border border-slate-200 bg-slate-100 px-3 py-3 text-sm transition hover:bg-slate-200 disabled:opacity-50">
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </Panel>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[1.08fr_0.92fr]">
+        <Panel title="Customer profile" subtitle="The customer and shipment context behind the return request.">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"><div className="text-xs uppercase tracking-[0.2em] text-slate-400">Name</div><div className="mt-1 font-medium text-slate-900">{caseDetail.customer.name}</div></div>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"><div className="text-xs uppercase tracking-[0.2em] text-slate-400">Email</div><div className="mt-1 break-all font-medium text-slate-900">{caseDetail.customer.email}</div></div>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"><div className="text-xs uppercase tracking-[0.2em] text-slate-400">Account age</div><div className="mt-1 font-medium text-slate-900">{caseDetail.customer.account_age_days} days</div></div>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"><div className="text-xs uppercase tracking-[0.2em] text-slate-400">Returns</div><div className="mt-1 font-medium text-slate-900">{caseDetail.customer.lifetime_returns}</div></div>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 sm:col-span-2"><div className="text-xs uppercase tracking-[0.2em] text-slate-400">Address</div><div className="mt-1 font-medium text-slate-900">{caseDetail.customer.address}</div></div>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 sm:col-span-2"><div className="text-xs uppercase tracking-[0.2em] text-slate-400">Device</div><div className="mt-1 font-medium text-slate-900">{caseDetail.customer.device_id}</div></div>
+          </div>
+        </Panel>
+        <Panel title="Order and return" subtitle="Shipment and reverse-logistics evidence used by the decision engine.">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"><div className="text-xs uppercase tracking-[0.2em] text-slate-400">Product</div><div className="mt-1 font-medium text-slate-900">{caseDetail.order.product_name}</div></div>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"><div className="text-xs uppercase tracking-[0.2em] text-slate-400">SKU</div><div className="mt-1 font-medium text-slate-900">{caseDetail.order.sku}</div></div>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"><div className="text-xs uppercase tracking-[0.2em] text-slate-400">Value</div><div className="mt-1 font-medium text-slate-900">${caseDetail.order.product_value.toLocaleString()}</div></div>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"><div className="text-xs uppercase tracking-[0.2em] text-slate-400">Expected weight</div><div className="mt-1 font-medium text-slate-900">{caseDetail.order.expected_weight} kg</div></div>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"><div className="text-xs uppercase tracking-[0.2em] text-slate-400">Returned weight</div><div className="mt-1 font-medium text-slate-900">{returnData?.returned_weight ?? "—"} kg</div></div>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 sm:col-span-2"><div className="text-xs uppercase tracking-[0.2em] text-slate-400">Reason</div><div className="mt-1 font-medium text-slate-900">{returnData?.return_reason ?? caseDetail.return_reason}</div></div>
+          </div>
+        </Panel>
+      </div>
+
+      <Panel title="Fraud ring graph" subtitle="Connected identities, payments, devices, and repeated return stories">
+        <FraudRingPanelView graph={graph} />
+      </Panel>
+
+      <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+        <Panel title="Explainability" subtitle="Signal-level evidence, drivers, and the human summary behind the score">
+          <ExplainabilityPanelView explainability={caseDetail.explainability} />
+        </Panel>
+        <TimelinePanel timeline={caseDetail.timeline} />
+      </div>
+
+      <Panel title="AI/ML enhancements" subtitle="Behavioral ensemble, semantic NLP, image/OCR checks, graph fraud, and the AI investigator">
+        <AdvancedSignalsPanelView advancedSignals={caseDetail.advanced_signals} />
+      </Panel>
+    </div>
+  );
+}
+
+function DecisionEnginePage({ latest }: { latest?: ScoreResponse }) {
+  const pipeline = [
+    "Return request ingestion",
+    "Data normalization",
+    "Feature extraction",
+    "Rule engine",
+    "ML risk engine",
+    "NLP engine",
+    "Fusion engine",
+    "Decision engine",
+    "Analyst feedback",
+  ];
+
+  return (
+    <div className="space-y-4">
+      <PageHeader
+        eyebrow="Decision intelligence"
+        title="Decision engine"
+        subtitle="See how rules, ML, NLP, and anomaly detection fuse into the final fraud decision."
+      />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="Latest final score" value={latest?.risk_score?.toFixed(1) ?? "—"} accent="text-blue-700" />
+        <MetricCard label="Customer risk" value={latest?.customer_risk_score?.toFixed(1) ?? "—"} accent="text-sky-700" />
+        <MetricCard label="Decision" value={latest?.decision ?? "—"} />
+        <MetricCard label="Risk level" value={latest?.risk_level ?? "—"} />
+      </div>
+
+      <Panel title="Decisioning architecture" subtitle="Decision-first flow adapted from Marble-style orchestration">
+        <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-3">
+          {pipeline.map((step, index) => (
+            <div key={step} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+              <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Step {index + 1}</div>
+              <div className="mt-2 text-sm font-medium text-slate-800">{step}</div>
+            </div>
+          ))}
+        </div>
+      </Panel>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Panel title="Signal fusion" subtitle="How individual signals combine into the final decision">
+          <div className="space-y-3">
+            {[["Customer risk", "Persistent behavioral exposure from history and shared identity patterns"], ["Rule engine", "Hard business controls such as weight mismatch and fast returns"], ["ML risk engine", "Structured anomaly scoring across customer, order, and return behavior"], ["NLP engine", "Detects refund pressure, empty-box claims, and repeated scripts"], ["Fusion engine", "Normalizes all scores into a single 0-100 outcome"]].map(([title, body]) => (
+              <div key={title} className="rounded-3xl border border-slate-200 bg-white p-4">
+                <div className="text-sm font-medium text-slate-800">{title}</div>
+                <div className="mt-1 text-sm text-slate-600">{body}</div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+        <Panel title="Latest decision trace" subtitle="The last submitted return request, when available">
+          {latest ? (
+            <div className="space-y-2 text-sm text-slate-700">
+              {latest.decision_trace.map((item) => (
+                <div key={item.stage} className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <span>{item.stage}</span>
+                  <span className="mono">{String(item.value)}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">Submit a return request to populate the decision trace.</div>
+          )}
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+function RulesPage({ rules, setRules }: { rules: Rule[]; setRules: Dispatch<SetStateAction<Rule[]>> }) {
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [message, setMessage] = useState<string>();
+  const [creating, setCreating] = useState(false);
+  const [newRule, setNewRule] = useState({
+    name: "High return frequency",
+    description: "Customer has unusually high return frequency",
+    condition: "customer_return_count_30d >= 5",
+    score: 20,
+  });
+
+  useEffect(() => {
+    setDrafts(Object.fromEntries(rules.map((rule) => [rule.id, String(rule.score)])));
+  }, [rules]);
+
+  const enabledCount = rules.filter((rule) => rule.enabled).length;
+  const averageScore = rules.length ? (rules.reduce((sum, rule) => sum + rule.score, 0) / rules.length).toFixed(1) : "0.0";
+  const disabledCount = rules.length - enabledCount;
+
+  const saveRuleScore = async (rule: Rule) => {
+    const nextScore = Number(drafts[rule.id] ?? rule.score);
+    if (Number.isNaN(nextScore)) return;
+    const updated = await api.updateRule(rule.id, { score: nextScore });
+    setRules((current) => current.map((item) => (item.id === rule.id ? updated : item)));
+    setMessage(`Updated ${rule.name}`);
+  };
+
+  const toggleRule = async (rule: Rule) => {
+    const updated = await api.updateRule(rule.id, { enabled: !rule.enabled });
+    setRules((current) => current.map((item) => (item.id === rule.id ? updated : item)));
+    setMessage(`${updated.enabled ? "Enabled" : "Disabled"} ${rule.name}`);
+  };
+
+  const createRule = async () => {
+    setCreating(true);
+    try {
+      const created = await api.createRule(newRule);
+      setRules((current) => [created, ...current]);
+      setDrafts((current) => ({ ...current, [created.id]: String(created.score) }));
+      setMessage(`Created ${created.name}`);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <PageHeader
+        eyebrow="Rules"
+        title="Rules"
+        subtitle="Create, enable, and tune JSON-backed controls for return fraud detection."
+      />
+
+      <div className="grid gap-4 xl:grid-cols-[1.12fr_0.88fr]">
+        <Panel title="Rule controls" subtitle="Create a rule, review coverage, and keep the active policy set lean.">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-[22px] border border-slate-200 bg-slate-50 p-4">
+              <div className="text-[11px] uppercase tracking-[0.24em] text-slate-500">Total rules</div>
+              <div className="mt-2 text-2xl font-semibold text-slate-950">{rules.length}</div>
+            </div>
+            <div className="rounded-[22px] border border-emerald-100 bg-emerald-50 p-4">
+              <div className="text-[11px] uppercase tracking-[0.24em] text-emerald-700">Enabled</div>
+              <div className="mt-2 text-2xl font-semibold text-emerald-700">{enabledCount}</div>
+            </div>
+            <div className="rounded-[22px] border border-slate-200 bg-white p-4">
+              <div className="text-[11px] uppercase tracking-[0.24em] text-slate-500">Disabled</div>
+              <div className="mt-2 text-2xl font-semibold text-slate-950">{disabledCount}</div>
+            </div>
+            <div className="rounded-[22px] border border-blue-100 bg-blue-50 p-4">
+              <div className="text-[11px] uppercase tracking-[0.24em] text-blue-700">Average score</div>
+              <div className="mt-2 text-2xl font-semibold text-blue-800">{averageScore}</div>
+            </div>
+          </div>
+          <div className="mt-4 rounded-[22px] border border-slate-200 bg-white p-4">
+            <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Create rule</div>
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <input value={newRule.name} onChange={(event) => setNewRule((value) => ({ ...value, name: event.target.value }))} placeholder="Rule name" className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none" />
+              <input value={newRule.condition} onChange={(event) => setNewRule((value) => ({ ...value, condition: event.target.value }))} placeholder="Condition" className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none" />
+              <input value={newRule.description} onChange={(event) => setNewRule((value) => ({ ...value, description: event.target.value }))} placeholder="Description" className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none md:col-span-2" />
+              <div className="flex flex-wrap items-center gap-3 md:col-span-2">
+                <input type="number" value={newRule.score} onChange={(event) => setNewRule((value) => ({ ...value, score: Number(event.target.value) }))} className="w-28 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none" />
+                <button onClick={createRule} disabled={creating} className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-medium text-slate-950 disabled:opacity-60">{creating ? "Creating..." : "Create rule"}</button>
+                {message ? <span className="text-sm text-slate-600">{message}</span> : null}
+              </div>
+            </div>
+          </div>
+        </Panel>
+
+        <Panel title="Policy notes" subtitle="Keep the rule set easy to audit and change.">
+          <div className="space-y-3 text-sm text-slate-700">
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">JSON-backed conditions keep the system editable without a custom rule builder.</div>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">Scores contribute to the fusion engine, but the final decision still blends ML, NLP, and anomaly signals.</div>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">Analyst feedback should drive future rule tuning when patterns are repeatedly confirmed.</div>
+          </div>
+        </Panel>
+      </div>
+
+      <Panel title="Configured rules" subtitle="Toggle rules and adjust score weights inline.">
+        <div className="overflow-auto rounded-[28px] border border-slate-200">
+          <table className="min-w-full text-left text-sm">
+            <thead className="sticky top-0 bg-slate-50 text-slate-600">
+              <tr>
+                <th className="px-4 py-3">Name</th>
+                <th className="px-4 py-3">Condition</th>
+                <th className="px-4 py-3">Description</th>
+                <th className="px-4 py-3">Score</th>
+                <th className="px-4 py-3">State</th>
+                <th className="px-4 py-3">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rules.map((rule) => (
+                <tr key={rule.id} className="border-t border-white/6 bg-white hover:bg-slate-50">
+                  <td className="px-4 py-4 font-medium text-slate-900">{rule.name}</td>
+                  <td className="px-4 py-4 font-mono text-xs text-slate-600">{rule.condition}</td>
+                  <td className="px-4 py-4 text-slate-600">{rule.description || "—"}</td>
+                  <td className="px-4 py-4">
+                    <input type="number" value={drafts[rule.id] ?? String(rule.score)} onChange={(event) => setDrafts((current) => ({ ...current, [rule.id]: event.target.value }))} className="w-24 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none" />
+                  </td>
+                  <td className="px-4 py-4">
+                    <span className={`rounded-full px-2.5 py-1 text-xs ${rule.enabled ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>{rule.enabled ? "Enabled" : "Disabled"}</span>
+                  </td>
+                  <td className="px-4 py-4">
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => saveRuleScore(rule)} className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700">Save score</button>
+                      <button onClick={() => toggleRule(rule)} className="rounded-2xl bg-slate-100 px-3 py-2 text-xs text-slate-700">{rule.enabled ? "Disable" : "Enable"}</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+function FeedbackPage({ feedback }: { feedback: FeedbackRecord[] }) {
+  const labelCounts = feedback.reduce<Record<string, number>>((acc, item) => {
+    acc[item.confirmed_label] = (acc[item.confirmed_label] ?? 0) + 1;
+    return acc;
+  }, {});
+  const total = feedback.length || 1;
+  const fraudLabels = labelCounts.confirmed_fraud ?? 0;
+  const falsePositives = labelCounts.false_positive ?? 0;
+
+  return (
+    <div className="space-y-4">
+      <PageHeader
+        eyebrow="Feedback"
+        title="Analyst feedback"
+        subtitle="Closed-loop labels that improve the model over time."
+      />
+
+      <div className="grid gap-4 xl:grid-cols-[1.08fr_0.92fr]">
+        <Panel title="Feedback summary" subtitle="Track how often analysts confirm fraud versus mark false positives.">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-[22px] border border-slate-200 bg-slate-50 p-4">
+              <div className="text-[11px] uppercase tracking-[0.24em] text-slate-500">Total labels</div>
+              <div className="mt-2 text-2xl font-semibold text-slate-950">{feedback.length}</div>
+            </div>
+            <div className="rounded-[22px] border border-rose-100 bg-rose-50 p-4">
+              <div className="text-[11px] uppercase tracking-[0.24em] text-rose-700">Confirmed fraud</div>
+              <div className="mt-2 text-2xl font-semibold text-rose-700">{fraudLabels}</div>
+            </div>
+            <div className="rounded-[22px] border border-emerald-100 bg-emerald-50 p-4">
+              <div className="text-[11px] uppercase tracking-[0.24em] text-emerald-700">False positives</div>
+              <div className="mt-2 text-2xl font-semibold text-emerald-700">{falsePositives}</div>
+            </div>
+            <div className="rounded-[22px] border border-blue-100 bg-blue-50 p-4">
+              <div className="text-[11px] uppercase tracking-[0.24em] text-blue-700">Coverage</div>
+              <div className="mt-2 text-2xl font-semibold text-blue-800">{Math.round((feedback.length / total) * 100)}%</div>
+            </div>
+          </div>
+          <div className="mt-4 rounded-[22px] border border-slate-200 bg-white p-4">
+            <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Label mix</div>
+            <div className="mt-3 space-y-2 text-sm text-slate-700">
+              {Object.entries(labelCounts).length ? Object.entries(labelCounts).map(([label, count]) => (
+                <div key={label} className="flex items-center justify-between rounded-2xl bg-slate-50 px-3 py-2">
+                  <span className="capitalize">{label.replace(/_/g, ' ')}</span>
+                  <span className="font-mono text-slate-700">{count}</span>
+                </div>
+              )) : <div className="rounded-2xl bg-slate-50 px-3 py-2 text-slate-500">No feedback labels collected yet.</div>}
+            </div>
+          </div>
+        </Panel>
+
+        <Panel title="Learning loop" subtitle="Analyst decisions feed model retraining and rule tuning.">
+          <div className="space-y-3 text-sm text-slate-700">
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">Confirmed fraud labels strengthen future fraud recall.</div>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">False positives help reduce overblocking and improve analyst trust.</div>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">The retraining job can use labeled cases to refresh the structured model and text features.</div>
+          </div>
+        </Panel>
+      </div>
+
+      <Panel title="Analyst feedback" subtitle="Closed-loop labels that improve the model over time.">
+        <div className="space-y-3 md:hidden">
+          {feedback.map((item) => (
+            <div key={item.id} className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold text-slate-900">{item.customer_name}</div>
+                  <div className="mt-1 text-xs text-slate-500">Case {item.case_id.slice(0, 8)} · {item.product_name}</div>
+                </div>
+                <div className="text-right text-xs text-slate-500">{new Date(item.created_at).toLocaleDateString()}</div>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2"><span className="text-slate-400">Analyst</span><div className="mt-1 font-medium text-slate-800">{item.analyst_decision}</div></div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2"><span className="text-slate-400">Label</span><div className="mt-1 font-medium text-slate-800">{item.confirmed_label}</div></div>
+              </div>
+              <div className="mt-3 rounded-2xl bg-slate-50 px-3 py-2 text-sm text-slate-600">{item.notes || "—"}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="hidden overflow-auto rounded-[28px] border border-slate-200 md:block">
+          <table className="min-w-full text-left text-sm">
+            <thead className="sticky top-0 bg-slate-50 text-slate-600">
+              <tr>
+                <th className="px-4 py-3">Case</th>
+                <th className="px-4 py-3">Customer</th>
+                <th className="px-4 py-3">Product</th>
+                <th className="px-4 py-3">Analyst Decision</th>
+                <th className="px-4 py-3">Confirmed Label</th>
+                <th className="px-4 py-3">Notes</th>
+                <th className="px-4 py-3">Created At</th>
+              </tr>
+            </thead>
+            <tbody>
+              {feedback.map((item) => (
+                <tr key={item.id} className="border-t border-white/6 bg-white hover:bg-slate-50">
+                  <td className="px-4 py-4 font-mono text-xs text-slate-700">{item.case_id.slice(0, 8)}</td>
+                  <td className="px-4 py-4 font-medium text-slate-900">{item.customer_name}</td>
+                  <td className="px-4 py-4 text-slate-700">{item.product_name}</td>
+                  <td className="px-4 py-4 text-slate-700">{item.analyst_decision}</td>
+                  <td className="px-4 py-4 text-slate-700">{item.confirmed_label}</td>
+                  <td className="px-4 py-4 text-slate-600">{item.notes || "—"}</td>
+                  <td className="px-4 py-4 text-slate-500">{new Date(item.created_at).toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+function scoreResponseFromCase(detail: CaseDetail): ScoreResponse {
+  return {
+    return_id: detail.return_id,
+    case_id: detail.id,
+    customer_risk_score: detail.customer_risk_score,
+    risk_score: detail.risk_score,
+    risk_level: detail.risk_level,
+    decision: detail.decision,
+    recommended_action: detail.recommended_action,
+    score_breakdown: detail.score_breakdown,
+    reason_codes: detail.reason_codes,
+    explanation: detail.explanation,
+    decision_trace: detail.decision_trace,
+    explainability: detail.explainability,
+    advanced_signals: detail.advanced_signals,
+  };
+}
+
+function InvestigationHome({ cases }: { cases: CaseSummary[] }) {
+  const navigate = useNavigate();
+  const spotlight = cases.filter((item) => item.risk_level !== "LOW").slice(0, 6);
+  const highRisk = spotlight.filter((item) => item.risk_level === 'HIGH').length;
+
+  return (
+    <div className="space-y-4">
+      <PageHeader
+        eyebrow="Investigation workspace"
+        title="Investigations"
+        subtitle="Select a case to inspect the evidence chain or jump straight into a high-risk return."
+      />
+
+      <div className="grid gap-4 xl:grid-cols-[1.08fr_0.92fr]">
+        <Panel title="Spotlight queue" subtitle="Quick access to the highest-priority cases.">
+          {spotlight.length ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              {spotlight.map((item) => (
+                <button key={item.id} onClick={() => navigate(`/investigations/${item.id}`)} className="rounded-[22px] border border-slate-200 bg-slate-50 p-4 text-left transition hover:bg-white hover:shadow-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-sm font-medium text-slate-900">{item.customer_name}</div>
+                    <span className={`rounded-full px-2.5 py-1 text-xs ${badgeTone(item.risk_level)}`}>{item.risk_level}</span>
+                  </div>
+                  <div className="mt-2 text-sm text-slate-600">{item.product_name}</div>
+                  <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
+                    <span>{item.decision}</span>
+                    <span className="mono">score {item.risk_score.toFixed(1)}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">No cases are loaded yet.</div>
+          )}
+        </Panel>
+
+        <Panel title="Queue summary" subtitle="Useful context before opening a case.">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-[22px] border border-slate-200 bg-slate-50 p-4">
+              <div className="text-[11px] uppercase tracking-[0.24em] text-slate-500">Visible cases</div>
+              <div className="mt-2 text-2xl font-semibold text-slate-950">{spotlight.length}</div>
+            </div>
+            <div className="rounded-[22px] border border-rose-100 bg-rose-50 p-4">
+              <div className="text-[11px] uppercase tracking-[0.24em] text-rose-700">High risk</div>
+              <div className="mt-2 text-2xl font-semibold text-rose-700">{highRisk}</div>
+            </div>
+          </div>
+          <div className="mt-4 space-y-3 text-sm text-slate-700">
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">High-risk cases can be routed straight into the case detail view for evidence review and analyst action.</div>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">This queue stays intentionally compact so analysts can get to a decision faster.</div>
+          </div>
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+function CaseDetailRoute({ onAction, onLoaded }: { onAction: (decision: string, notes: string, id: string) => Promise<void>; onLoaded?: (value: ScoreResponse) => void }) {
+  const params = useParams();
+  const id = params.id;
+  const [caseDetail, setCaseDetail] = useState<CaseDetail>();
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    if (!id) {
+      setCaseDetail(undefined);
+      setLoading(false);
+      return undefined;
+    }
+    setLoading(true);
+    api.getCase(id)
+      .then((value) => {
+        if (!active) return;
+        setCaseDetail(value);
+        setLoading(false);
+        onLoaded?.(scoreResponseFromCase(value));
+      })
+      .catch(() => {
+        if (!active) return;
+        setCaseDetail(undefined);
+        setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [id, onLoaded]);
+
+  if (loading) {
+    return <Panel title="Investigations" subtitle="Loading case details…">Loading…</Panel>;
+  }
+
+  if (!caseDetail) {
+    return <Panel title="Investigations" subtitle="Unable to load this case.">Case not found.</Panel>;
+  }
+
+  return <InvestigationPage caseDetail={caseDetail} onAction={async (decision, notes) => { if (!id) return; await onAction(decision, notes, id); const refreshed = await api.getCase(id); setCaseDetail(refreshed); onLoaded?.(scoreResponseFromCase(refreshed)); }} />;
+}
+
+function AppInner() {
+  const [metrics, setMetrics] = useState<Metrics>();
+  const [cases, setCases] = useState<CaseSummary[]>([]);
+  const [rules, setRules] = useState<Rule[]>([]);
+  const [feedback, setFeedback] = useState<FeedbackRecord[]>([]);
+  const [lastScore, setLastScore] = useState<ScoreResponse>();
+  const [filters, setFilters] = useState({ q: "", decision: "", risk: "" });
+  const navigate = useNavigate();
+
+  const refreshData = async () => {
+    const [freshMetrics, freshCases] = await Promise.all([api.getMetrics(), api.getCases()]);
+    setMetrics(freshMetrics);
+    setCases(freshCases);
+  };
+
+  useEffect(() => {
+    refreshData().catch(() => undefined);
+    api.getRules().then(setRules).catch(() => undefined);
+    api.getFeedback().then(setFeedback).catch(() => undefined);
+  }, []);
+
+  const handleDecision = async (id: string, decision: string, notes: string) => {
+    const confirmedLabel = decision === "Mark Confirmed Fraud" ? "confirmed_fraud" : decision === "Mark False Positive" ? "false_positive" : undefined;
+    await api.updateDecision(id, { decision, notes, confirmed_label: confirmedLabel });
+    await Promise.all([refreshData(), api.getFeedback().then(setFeedback)]);
+  };
+
+  return (
+    <AppShell>
+      <Routes>
+        <Route path="/" element={<OverviewPage metrics={metrics} onReturnCreated={async (result) => { setLastScore(result); await refreshData(); navigate(`/investigations/${result.case_id}`); }} />} />
+        <Route path="/cases" element={<CasesPage cases={cases} filters={filters} setFilters={setFilters} />} />
+        <Route path="/cases/:id" element={<CaseDetailRoute onAction={handleDecision} onLoaded={setLastScore} />} />
+        <Route path="/decision-engine" element={<DecisionEnginePage latest={lastScore} />} />
+        <Route path="/enhancements" element={<EnhancementsPage latest={lastScore} cases={cases} />} />
+        <Route path="/investigations" element={<InvestigationHome cases={cases} />} />
+        <Route path="/investigations/:id" element={<CaseDetailRoute onAction={handleDecision} onLoaded={setLastScore} />} />
+        <Route path="/rules" element={<RulesPage rules={rules} setRules={setRules} />} />
+        <Route path="/feedback" element={<FeedbackPage feedback={feedback} />} />
+      </Routes>
+    </AppShell>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppInner />
+    </BrowserRouter>
+  );
+}
