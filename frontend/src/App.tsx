@@ -969,7 +969,19 @@ function InvestigationPage({ caseDetail, onAction }: { caseDetail?: CaseDetail; 
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ label: string; value: string } | null>(null);
+  const [investigationReport, setInvestigationReport] = useState<Record<string, unknown> | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
   const { showToast } = useToast();
+  const { id } = useParams();
+
+  useEffect(() => {
+    if (!id) return;
+    setReportLoading(true);
+    api.getInvestigationReport(id).then((report) => {
+      setInvestigationReport(report as Record<string, unknown>);
+      setReportLoading(false);
+    }).catch(() => setReportLoading(false));
+  }, [id]);
 
   if (!caseDetail) {
     return <Panel title="Investigations" subtitle="Select a case from the queue to inspect the evidence chain.">Loading…</Panel>;
@@ -1186,6 +1198,63 @@ function InvestigationPage({ caseDetail, onAction }: { caseDetail?: CaseDetail; 
 
       <Panel title="AI/ML enhancements" subtitle="Behavioral ensemble, semantic NLP, image/OCR checks, graph fraud, and the AI investigator">
         <AdvancedSignalsPanelView advancedSignals={caseDetail.advanced_signals} />
+      </Panel>
+
+      <Panel title="Investigation report" subtitle="LLM-generated summary of evidence, signals, and recommended next steps.">
+        {reportLoading ? (
+          <div className="rounded-lg border border-grey-border bg-grey-background-light p-4 text-sm text-grey-secondary">Loading investigation report...</div>
+        ) : investigationReport ? (
+          (() => {
+            const r = investigationReport as Record<string, unknown>;
+            const inv = r.investigation as Record<string, unknown> | undefined;
+            const summary = String(r.summary ?? inv?.summary ?? 'No summary available.');
+            const evidence = (r.evidence ?? inv?.evidence ?? []) as Array<Record<string, unknown>>;
+            const recommendation = (r.recommendation ?? inv?.recommendation) as string | undefined;
+            const riskFactors = (r.risk_factors ?? inv?.risk_factors ?? []) as string[];
+            return (
+              <div className="space-y-4">
+                <div className="rounded-lg border border-grey-border bg-grey-background-light p-4">
+                  <div className="text-xs uppercase tracking-[0.22em] text-grey-secondary">Summary</div>
+                  <div className="mt-2 text-sm leading-6 text-grey-primary">{summary}</div>
+                </div>
+                {evidence.length > 0 && (
+                  <div className="rounded-lg border border-grey-border bg-grey-background-light p-4">
+                    <div className="text-xs uppercase tracking-[0.22em] text-grey-secondary">Evidence items</div>
+                    <div className="mt-3 space-y-2">
+                      {evidence.slice(0, 6).map((item, i) => (
+                        <div key={i} className="flex items-start gap-3 rounded-lg border border-grey-border bg-surface-card p-3 text-sm">
+                          <div className="size-2 mt-1.5 shrink-0 rounded-full bg-purple-primary" />
+                          <div>
+                            <div className="font-medium text-grey-primary">{String(item.label ?? item.type ?? 'Evidence')}</div>
+                            <div className="mt-0.5 text-xs text-grey-secondary">{String(item.detail ?? item.description ?? '')}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {recommendation && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                    <div className="text-xs uppercase tracking-[0.22em] text-amber-700">Recommendation</div>
+                    <div className="mt-1 text-sm font-medium text-amber-900">{String(recommendation)}</div>
+                  </div>
+                )}
+                {riskFactors.length > 0 && (
+                  <div className="rounded-lg border border-grey-border bg-grey-background-light p-4">
+                    <div className="text-xs uppercase tracking-[0.22em] text-grey-secondary">Risk factors</div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {riskFactors.map((factor, i) => (
+                        <span key={i} className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs text-red-700">{factor}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()
+        ) : (
+          <div className="rounded-lg border border-grey-border bg-grey-background-light p-4 text-sm text-grey-secondary">No investigation report available for this case.</div>
+        )}
       </Panel>
     </div>
   );
@@ -2190,6 +2259,7 @@ function KaggleImportPage() {
 function ModuleDashboardPage() {
   const [data, setData] = useState<Record<string, unknown> | null>(null);
   const [seedResult, setSeedResult] = useState<string | null>(null);
+  const [retrainResult, setRetrainResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
@@ -2214,6 +2284,19 @@ function ModuleDashboardPage() {
     }
   };
 
+  const handleRetrain = async () => {
+    setRetrainResult('Retraining...');
+    try {
+      const result = await api.retrain();
+      const r = result as Record<string, unknown>;
+      const m = (r.metrics ?? {}) as Record<string, unknown>;
+      setRetrainResult(`Retrained: ${String(r.model_version ?? '?')}  prec=${String(m.precision ?? '—')}  rec=${String(m.recall ?? '—')}`);
+      await load();
+    } catch (e) {
+      setRetrainResult(`Retrain failed: ${e}`);
+    }
+  };
+
   const metrics = data?.monitoring as Record<string, unknown> | undefined;
   const embeddings = data?.embeddings as Record<string, unknown> | undefined;
   const models = data?.models as Record<string, unknown> | undefined;
@@ -2226,11 +2309,22 @@ function ModuleDashboardPage() {
         title="Module Dashboard"
         subtitle="Status of all AI/ML intelligence modules."
         action={
-          <button onClick={handleSeed} className="rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
-            Re-seed module data
-          </button>
+          <div className="flex gap-2">
+            <button onClick={handleRetrain} className="rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700">
+              Retrain models
+            </button>
+            <button onClick={handleSeed} className="rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
+              Re-seed module data
+            </button>
+          </div>
         }
       />
+      {seedResult && (
+        <div className="rounded-[22px] border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">{seedResult}</div>
+      )}
+      {retrainResult && (
+        <div className="rounded-[22px] border border-green-200 bg-green-50 p-4 text-sm text-green-800">{retrainResult}</div>
+      )}
       {seedResult && (
         <div className="rounded-[22px] border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">{seedResult}</div>
       )}
@@ -2290,6 +2384,319 @@ function ModuleDashboardPage() {
   );
 }
 
+function AlertsPage() {
+  const [rules, setRules] = useState<Array<Record<string, unknown>>>([]);
+  const [evalResult, setEvalResult] = useState<string | null>(null);
+  const [evalPayload, setEvalPayload] = useState('{"risk_score": 85, "risk_level": "HIGH", "product_value": 420}');
+
+  useEffect(() => {
+    fetch('/api/alerts/rules').then(r => r.json()).then(d => setRules(d.rules ?? [])).catch(() => {});
+  }, []);
+
+  const runEval = async () => {
+    try {
+      const res = await api.evaluateAlerts(JSON.parse(evalPayload));
+      setEvalResult(`Alerts fired: ${(res.alerts_fired ?? []).length} — ${JSON.stringify(res.alerts_fired.map(a => a.rule ?? a.name ?? a.alert ?? '?'))}`);
+    } catch { setEvalResult('Evaluation failed'); }
+  };
+
+  return (
+    <div className="space-y-4">
+      <PageHeader eyebrow="Control" title="Alerts" subtitle="Configured alert rules and live evaluation." />
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Panel title="Alert rules" subtitle={`${rules.length} rules configured`}>
+          <div className="space-y-2">
+            {rules.length ? rules.map((rule, i) => (
+              <div key={i} className="flex items-center justify-between rounded-lg border border-grey-border bg-grey-background-light p-3">
+                <div>
+                  <div className="text-sm font-medium text-grey-primary">{String(rule.name ?? 'Rule ' + (i + 1))}</div>
+                  <div className="text-xs text-grey-secondary">{String(rule.description ?? rule.condition ?? '')}</div>
+                </div>
+                <span className={`rounded-full px-2.5 py-1 text-xs ${String(rule.severity ?? 'medium') === 'critical' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                  {String(rule.severity ?? 'medium')}
+                </span>
+              </div>
+            )) : <div className="text-sm text-grey-secondary">No alert rules configured.</div>}
+          </div>
+        </Panel>
+        <Panel title="Live evaluation" subtitle="Test a payload against alert rules.">
+          <textarea value={evalPayload} onChange={e => setEvalPayload(e.target.value)} className="min-h-[180px] w-full rounded-lg border border-grey-border bg-grey-background p-3 font-mono text-xs outline-none" />
+          <button onClick={runEval} className="mt-3 rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white">Evaluate</button>
+          {evalResult && <div className="mt-3 rounded-lg border border-grey-border bg-grey-background-light p-3 text-sm text-grey-primary">{evalResult}</div>}
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+function MerchantsPage() {
+  const [merchantIds, setMerchantIds] = useState<string[]>([]);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [config, setConfig] = useState<Record<string, unknown> | null>(null);
+
+  useEffect(() => { api.getMerchants().then(d => setMerchantIds(d.merchants)).catch(() => {}); }, []);
+
+  const loadConfig = async (id: string) => {
+    setSelected(id);
+    try { const c = await api.getMerchantConfig(id); setConfig(c as Record<string, unknown>); }
+    catch { setConfig(null); }
+  };
+
+  return (
+    <div className="space-y-4">
+      <PageHeader eyebrow="Control" title="Merchants" subtitle={`${merchantIds.length} configured merchant profiles.`} />
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Panel title="Merchant profiles" subtitle="Click a merchant to view its configuration.">
+          <div className="space-y-2">
+            {merchantIds.length ? merchantIds.map((id) => (
+              <button key={id} onClick={() => loadConfig(id)}
+                className={`w-full rounded-lg border p-3 text-left text-sm transition-colors ${selected === id ? 'border-purple-border bg-purple-background text-purple-primary' : 'border-grey-border bg-grey-background-light text-grey-primary hover:bg-grey-background'}`}>
+                {id}
+              </button>
+            )) : <div className="text-sm text-grey-secondary">No merchants configured.</div>}
+          </div>
+        </Panel>
+        <Panel title={selected ? `Config: ${selected}` : 'Merchant config'} subtitle="Risk thresholds, fusion weights, and rules.">
+          {config ? (
+            <div className="space-y-3">
+              {Object.entries(config).map(([key, value]) => (
+                <div key={key} className="rounded-lg border border-grey-border bg-grey-background-light p-3">
+                  <div className="text-xs uppercase tracking-[0.2em] text-grey-secondary">{key.replace(/_/g, ' ')}</div>
+                  <div className="mt-1 text-sm font-mono text-grey-primary">{typeof value === 'object' ? JSON.stringify(value, null, 1) : String(value)}</div>
+                </div>
+              ))}
+            </div>
+          ) : <div className="text-sm text-grey-secondary">{selected ? 'Failed to load config.' : 'Select a merchant to view config.'}</div>}
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+function ModelsPage() {
+  const [models, setModels] = useState<Record<string, unknown> | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = async () => {
+    setLoading(true);
+    try { const d = await api.getModels(); setModels(d as Record<string, unknown>); }
+    catch {}
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  return (
+    <div className="space-y-4">
+      <PageHeader eyebrow="System" title="Model Registry" subtitle="Browse and manage versioned ML models across all categories." />
+      {loading ? (
+        <Panel title="Loading" subtitle="Fetching model registry..."><div className="p-8 text-center text-grey-secondary">Loading...</div></Panel>
+      ) : models ? (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {Object.entries(models).map(([cat, info]) => {
+            const i = info as Record<string, unknown>;
+            const versions = (i.versions ?? []) as Array<Record<string, unknown>>;
+            const current = String(i.current ?? i.current_version ?? '—');
+            return (
+              <Panel key={cat} title={cat.charAt(0).toUpperCase() + cat.slice(1)} subtitle={`Current: v${current}`}>
+                <div className="space-y-2">
+                  {versions.length ? versions.map((v, idx) => {
+                    const ver = String(v.version ?? idx);
+                    const meta = v.metadata as Record<string, unknown> | undefined;
+                    const desc = String(meta?.description ?? v.description ?? '');
+                    return (
+                      <div key={idx} className={`flex items-center justify-between rounded-lg border p-3 ${ver === current ? 'border-purple-border bg-purple-background' : 'border-grey-border bg-grey-background-light'}`}>
+                        <span className="text-sm font-mono text-grey-primary">v{ver}</span>
+                        <span className="text-xs text-grey-secondary">{desc}</span>
+                      </div>
+                    );
+                  }) : <div className="text-sm text-grey-secondary">No versions saved.</div>}
+                </div>
+              </Panel>
+            );
+          })}
+        </div>
+      ) : <Panel title="Error" subtitle="Could not load models."><div className="p-8 text-center text-grey-secondary">Failed to load model registry.</div></Panel>}
+    </div>
+  );
+}
+
+function MonitoringPage() {
+  const [perf, setPerf] = useState<Record<string, unknown> | null>(null);
+  const [drift, setDrift] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const p = await api.getMonitoringPerformance();
+      setPerf(p as Record<string, unknown>);
+    } catch {}
+    try {
+      const d = await (await fetch('/api/monitoring/drift')).json();
+      setDrift(d.message ?? String(d.drift_checked ?? ''));
+    } catch {}
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const runDrift = async () => {
+    setDrift('Checking drift...');
+    try {
+      const d = await (await fetch('/api/monitoring/drift/check', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({reference: [{rule_score: 25, structured_ml_score: 30, nlp_score: 20, anomaly_score: 15}], current: [{rule_score: 65, structured_ml_score: 78, nlp_score: 84, anomaly_score: 73}]})})).json();
+      setDrift(`Drift detected: ${String(d.drift_detected)} — columns: ${(d.drifted_columns ?? []).join(', ') || 'none'}`);
+    } catch { setDrift('Drift check failed.'); }
+  };
+
+  return (
+    <div className="space-y-4">
+      <PageHeader eyebrow="System" title="Monitoring" subtitle="Performance metrics and data drift detection."
+        action={<button onClick={runDrift} className="rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm">Check drift</button>}
+      />
+      {loading ? (
+        <Panel title="Loading" subtitle="Fetching monitoring data..."><div className="p-8 text-center text-grey-secondary">Loading...</div></Panel>
+      ) : (
+        <div className="grid gap-4 xl:grid-cols-2">
+          <Panel title="Model performance" subtitle="Prediction metrics across recent samples.">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <MetricCard label="Avg prediction" value={Number(perf?.avg_prediction ?? 0).toFixed(1)} />
+              <MetricCard label="Avg latency" value={`${Number(perf?.avg_latency_ms ?? 0).toFixed(0)} ms`} accent="text-orange-primary" />
+              <MetricCard label="Samples" value={Number(perf?.samples ?? 0)} />
+            </div>
+            {(perf?.recent_predictions as Array<Record<string, unknown>> ?? []).length > 0 && (
+              <div className="mt-4 rounded-lg border border-grey-border bg-grey-background-light p-3">
+                <div className="text-xs uppercase tracking-[0.2em] text-grey-secondary">Recent predictions</div>
+                <div className="mt-2 space-y-1 text-xs text-grey-primary">
+                  {((perf?.recent_predictions ?? []) as Array<Record<string, unknown>>).slice(0, 10).map((p, i) => (
+                    <div key={i} className="flex items-center justify-between rounded bg-surface-card px-2 py-1">
+                      <span>pred={Number(p.prediction ?? 0).toFixed(1)}</span>
+                      <span>actual={Number(p.actual ?? 0).toFixed(1)}</span>
+                      <span>{Number(p.latency_ms ?? 0).toFixed(0)}ms</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Panel>
+          <Panel title="Data drift" subtitle="Distribution shift detection.">
+            {drift ? (
+              <div className="rounded-lg border border-grey-border bg-grey-background-light p-4 text-sm text-grey-primary">{drift}</div>
+            ) : (
+              <div className="rounded-lg border border-grey-border bg-grey-background-light p-4 text-sm text-grey-secondary">Click "Check drift" to run a drift analysis.</div>
+            )}
+            <div className="mt-4 rounded-lg border border-grey-border bg-grey-background-light p-4 text-sm text-grey-secondary">Drift monitoring compares reference vs. current score distributions and flags columns that have shifted beyond the configured threshold.</div>
+          </Panel>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NlpAnalyzerPage() {
+  const [text, setText] = useState('I want a refund immediately, or I will open a chargeback.');
+  const [result, setResult] = useState<Record<string, unknown> | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const analyze = async () => {
+    setLoading(true);
+    try {
+      const res = await (await fetch('/api/nlp/analyze', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ text }) })).json();
+      setResult(res as Record<string, unknown>);
+    } catch { setResult({ error: 'Analysis failed' }); }
+    setLoading(false);
+  };
+
+  const analysis = result?.analysis as Record<string, unknown> | undefined;
+  const fraudScore = String(analysis?.fraud_score ?? result?.fraud_score ?? '—');
+  const phrases = (analysis?.flagged_phrases ?? result?.flagged_phrases ?? []) as string[];
+
+  return (
+    <div className="space-y-4">
+      <PageHeader eyebrow="Intelligence" title="NLP Analyzer" subtitle="Analyze return reason text for fraud signals, urgency, and manipulation." />
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Panel title="Input text" subtitle="Enter a customer's return reason or chat transcript.">
+          <textarea value={text} onChange={e => setText(e.target.value)} className="min-h-[200px] w-full rounded-lg border border-grey-border bg-grey-background p-3 text-sm outline-none" />
+          <button onClick={analyze} disabled={loading} className="mt-3 rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60">{loading ? 'Analyzing...' : 'Analyze'}</button>
+        </Panel>
+        <Panel title="Analysis result" subtitle="Fraud signals, sentiment, and flagged phrases.">
+          {result ? (
+            <div className="space-y-3">
+              {result.error ? (
+                <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{String(result.error)}</div>
+              ) : (
+                <>
+                  <div className="rounded-lg border border-grey-border bg-grey-background-light p-4">
+                    <div className="text-xs uppercase tracking-[0.2em] text-grey-secondary">Fraud score</div>
+                    <div className="mt-1 text-2xl font-semibold text-grey-primary">{fraudScore}</div>
+                  </div>
+                  <div className="rounded-lg border border-grey-border bg-grey-background-light p-4">
+                    <div className="text-xs uppercase tracking-[0.2em] text-grey-secondary">Flagged phrases</div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {phrases.length ? phrases.map((p, i) => (
+                        <span key={i} className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs text-red-700">{p}</span>
+                      )) : <span className="text-sm text-grey-secondary">No phrases flagged.</span>}
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-grey-border bg-grey-background-light p-4">
+                    <div className="text-xs uppercase tracking-[0.2em] text-grey-secondary">Full analysis</div>
+                    <div className="mt-2 text-sm text-grey-primary font-mono whitespace-pre-wrap">{JSON.stringify(result, null, 2)}</div>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-grey-border bg-grey-background-light p-4 text-sm text-grey-secondary">Enter text and click Analyze to see results.</div>
+          )}
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+function EmbeddingsPage() {
+  const [query, setQuery] = useState('empty box refund request');
+  const [results, setResults] = useState<Array<{ score: number; metadata: Record<string, unknown> }>>([]);
+  const [loading, setLoading] = useState(false);
+  const [stats, setStats] = useState<Record<string, unknown>>({});
+
+  useEffect(() => { api.getEmbeddingStats().then(d => setStats(d as Record<string, unknown>)).catch(() => {}); }, []);
+
+  const search = async () => {
+    setLoading(true);
+    try {
+      const res = await api.searchEmbeddings(query, 10);
+      setResults(res.results);
+    } catch {}
+    setLoading(false);
+  };
+
+  return (
+    <div className="space-y-4">
+      <PageHeader eyebrow="Intelligence" title="Embeddings Explorer" subtitle={`${String(stats.size ?? '?')} vectors · ${String(stats.active_model ?? '—')}`} />
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Panel title="Semantic search" subtitle="Find similar cases by natural language query.">
+          <input value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && search()} placeholder="Search for similar cases..." className="w-full rounded-lg border border-grey-border bg-grey-background px-4 py-3 text-sm outline-none" />
+          <button onClick={search} disabled={loading} className="mt-3 rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60">{loading ? 'Searching...' : 'Search'}</button>
+        </Panel>
+        <Panel title="Results" subtitle={`${results.length} similar cases`}>
+          <div className="space-y-2">
+            {results.length ? results.map((r, i) => (
+              <div key={i} className="rounded-lg border border-grey-border bg-grey-background-light p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono text-grey-primary">{String(r.metadata?.customer_name ?? r.metadata?.case_id ?? 'Case ' + (i + 1)).slice(0, 40)}</span>
+                  <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs text-purple-700">{r.score.toFixed(3)}</span>
+                </div>
+                <div className="mt-1 text-xs text-grey-secondary">{String(r.metadata?.return_reason ?? r.metadata?.decision ?? '')}</div>
+              </div>
+            )) : <div className="text-sm text-grey-secondary">Enter a query and click Search.</div>}
+          </div>
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
 function AppInner() {
   const [metrics, setMetrics] = useState<Metrics>();
   const [cases, setCases] = useState<CaseSummary[]>([]);
@@ -2336,6 +2743,12 @@ function AppInner() {
         <Route path="/graph-analytics" element={<GraphAnalyticsPage />} />
         <Route path="/modules" element={<ModuleDashboardPage />} />
         <Route path="/kaggle" element={<KaggleImportPage />} />
+        <Route path="/alerts" element={<AlertsPage />} />
+        <Route path="/merchants" element={<MerchantsPage />} />
+        <Route path="/models" element={<ModelsPage />} />
+        <Route path="/monitoring" element={<MonitoringPage />} />
+        <Route path="/nlp" element={<NlpAnalyzerPage />} />
+        <Route path="/embeddings" element={<EmbeddingsPage />} />
       </Routes>
     </AppShell>
   );

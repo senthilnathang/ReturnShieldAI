@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { Brain, Database, GitBranch, Layers3, LineChart, Monitor, Pin, PinOff, Search, Shield, Sparkles, SlidersHorizontal } from 'lucide-react';
+import { Activity, Bell, Brain, Database, GitBranch, Layers3, LineChart, Monitor, Pin, PinOff, Search, Shield, ShoppingBag, SlidersHorizontal, Sparkles, Warehouse } from 'lucide-react';
 
 const navSections = [
   {
@@ -18,6 +18,8 @@ const navSections = [
       { to: '/fraud-ring', label: 'Fraud Ring', icon: GitBranch },
       { to: '/patterns', label: 'Patterns', icon: Search },
       { to: '/evidence', label: 'Evidence', icon: Shield },
+      { to: '/nlp', label: 'NLP Analyzer', icon: Brain },
+      { to: '/embeddings', label: 'Embeddings', icon: Database },
     ],
   },
   {
@@ -31,12 +33,16 @@ const navSections = [
     label: 'Control',
     items: [
       { to: '/rules', label: 'Rules', icon: SlidersHorizontal },
+      { to: '/alerts', label: 'Alerts', icon: Bell },
+      { to: '/merchants', label: 'Merchants', icon: ShoppingBag },
     ],
   },
   {
     label: 'System',
     items: [
       { to: '/modules', label: 'Modules', icon: Monitor },
+      { to: '/models', label: 'Model Registry', icon: Warehouse },
+      { to: '/monitoring', label: 'Monitoring', icon: Activity },
       { to: '/kaggle', label: 'Kaggle Import', icon: Database },
     ],
   },
@@ -111,8 +117,6 @@ export function LeftSidebar({
             ))}
           </div>
         </nav>
-
-
       </div>
     </div>
   );
