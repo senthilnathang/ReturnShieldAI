@@ -1930,6 +1930,109 @@ function GraphAnalyticsPage() {
   );
 }
 
+function ModuleDashboardPage() {
+  const [data, setData] = useState<Record<string, unknown> | null>(null);
+  const [seedResult, setSeedResult] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const d = await api.getModuleDashboard();
+      setData(d);
+    } catch { /* ignore */ }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const handleSeed = async () => {
+    setSeedResult('Seeding...');
+    try {
+      const result = await api.seedModuleData();
+      setSeedResult(`Seeded OK: ${JSON.stringify(result.results)}`);
+      await load();
+    } catch (e) {
+      setSeedResult(`Seed failed: ${e}`);
+    }
+  };
+
+  const metrics = data?.monitoring as Record<string, unknown> | undefined;
+  const embeddings = data?.embeddings as Record<string, unknown> | undefined;
+  const models = data?.models as Record<string, unknown> | undefined;
+  const merchants = data?.merchants as Record<string, unknown> | undefined;
+
+  return (
+    <div className="space-y-4">
+      <PageHeader
+        eyebrow="System"
+        title="Module Dashboard"
+        subtitle="Status of all AI/ML intelligence modules."
+        action={
+          <button onClick={handleSeed} className="rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
+            Re-seed module data
+          </button>
+        }
+      />
+      {seedResult && (
+        <div className="rounded-[22px] border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">{seedResult}</div>
+      )}
+      {loading ? (
+        <Panel title="Loading" subtitle="Fetching module status...">
+          <div className="p-8 text-center text-grey-secondary">Loading...</div>
+        </Panel>
+      ) : (
+        <div className="grid gap-4 xl:grid-cols-3">
+          <Panel title="Embeddings" subtitle={`${Number(embeddings?.size ?? 0)} vectors indexed`}>
+            <div className="space-y-3">
+              <MetricCard label="Vector count" value={Number(embeddings?.size ?? 0)} accent="text-purple-primary" />
+              <div className="rounded-lg border border-grey-border bg-grey-background-light p-3 text-sm">
+                <span className="text-grey-secondary">Model: </span>
+                <span className="font-mono text-grey-primary">{String(embeddings?.active_model ?? '—')}</span>
+              </div>
+            </div>
+          </Panel>
+          <Panel title="Model Registry" subtitle="Versions per category">
+            <div className="space-y-2">
+              {models ? Object.entries(models).map(([cat, info]) => {
+                const i = info as Record<string, unknown>;
+                return (
+                  <div key={cat} className="flex items-center justify-between rounded-lg border border-grey-border bg-grey-background-light p-3">
+                    <span className="text-sm font-medium text-grey-primary capitalize">{cat}</span>
+                    <div className="text-right text-xs text-grey-secondary">
+                      <div className="font-mono text-grey-primary">v{i.current_version as string ?? '—'}</div>
+                      <div>{String(i.versions ?? 0)} versions</div>
+                    </div>
+                  </div>
+                );
+              }) : <div className="text-sm text-grey-secondary">No model data.</div>}
+            </div>
+          </Panel>
+          <Panel title="Monitoring" subtitle="Performance metrics">
+            <div className="space-y-3">
+              <MetricCard label="Avg prediction" value={Number(metrics?.avg_prediction ?? 0).toFixed(1)} />
+              <MetricCard label="Avg latency" value={`${Number(metrics?.avg_latency_ms ?? 0).toFixed(0)} ms`} accent="text-orange-primary" />
+              <MetricCard label="Samples" value={Number(metrics?.samples ?? 0)} />
+            </div>
+          </Panel>
+        </div>
+      )}
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Panel title="Merchants" subtitle={`${Number(merchants?.count ?? 0)} configured`}>
+          <div className="flex flex-wrap gap-2">
+            {(merchants?.ids as string[] ?? []).map((id: string) => (
+              <span key={id} className="rounded-full bg-purple-background px-3 py-1 text-xs text-purple-primary">{id}</span>
+            ))}
+          </div>
+        </Panel>
+        <Panel title="Alert Rules" subtitle="Configured alert triggers">
+          <MetricCard label="Alert rules" value={Number(data?.alert_rules ?? 0)} accent="text-red-primary" />
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
 function AppInner() {
   const [metrics, setMetrics] = useState<Metrics>();
   const [cases, setCases] = useState<CaseSummary[]>([]);
@@ -1974,6 +2077,7 @@ function AppInner() {
         <Route path="/timeline/:id" element={<TimelineExplorerPage />} />
         <Route path="/patterns" element={<PatternLibraryPage />} />
         <Route path="/graph-analytics" element={<GraphAnalyticsPage />} />
+        <Route path="/modules" element={<ModuleDashboardPage />} />
       </Routes>
     </AppShell>
   );

@@ -1,5 +1,5 @@
 import { Link, NavLink } from 'react-router-dom';
-import { ArrowRight, Brain, GitBranch, Layers3, LineChart, Pin, PinOff, Search, Shield, Sparkles, SlidersHorizontal, Timer } from 'lucide-react';
+import { ArrowRight, Brain, GitBranch, Layers3, LineChart, Monitor, Pin, PinOff, Search, Shield, Sparkles, SlidersHorizontal, Timer } from 'lucide-react';
 
 const navSections = [
   {
@@ -31,6 +31,12 @@ const navSections = [
     label: 'Control',
     items: [
       { to: '/rules', label: 'Rules', icon: SlidersHorizontal },
+    ],
+  },
+  {
+    label: 'System',
+    items: [
+      { to: '/modules', label: 'Modules', icon: Monitor },
     ],
   },
 ] as const;

@@ -395,6 +395,42 @@ def health(session: Session = Depends(get_session)):
     return {"status": "ok"}
 
 
+@router.post("/seed")
+def trigger_seed(session: Session = Depends(get_session)):
+    from backend.app.modules.seed_data import seed_all_module_data
+
+    results = seed_all_module_data(session)
+    return {"seeded": True, "results": {k: v for k, v in results.items() if isinstance(v, (int, bool, str))}}
+
+
+@router.get("/modules/dashboard")
+def modules_dashboard(session: Session = Depends(get_session)):
+    from backend.app.modules.model_registry import ModelRegistry
+    from backend.app.modules.monitoring_engine.monitoring_engine import MonitoringEngine
+    from backend.app.modules.vector_engine.embedding_service import EmbeddingService
+    from backend.app.modules.merchant_engine.merchant_engine import MerchantEngine
+    from backend.app.modules.alert_engine.alert_engine import AlertEngine
+
+    registry = ModelRegistry()
+    monitor = MonitoringEngine()
+    embedding = EmbeddingService()
+    merchants = MerchantEngine()
+    alerts = AlertEngine()
+
+    model_status = {}
+    for cat in ["structured", "nlp", "graph", "anomaly", "fusion"]:
+        current = registry.get_current_version(cat)
+        model_status[cat] = {"current_version": current, "versions": len(registry.list_versions(cat))}
+
+    return {
+        "embeddings": {"size": embedding.size(), "active_model": embedding.provider.model_name if hasattr(embedding.provider, 'model_name') else "tf-idf"},
+        "models": model_status,
+        "monitoring": monitor.get_performance_summary(),
+        "merchants": {"count": len(merchants.list_merchants()), "ids": merchants.list_merchants()},
+        "alert_rules": len(alerts.rules),
+    }
+
+
 def create_app() -> FastAPI:
     app = FastAPI(title=settings.app_name)
     app.add_middleware(
@@ -420,6 +456,9 @@ def create_app() -> FastAPI:
                     seed_database(session)
                     global MODEL_BUNDLE
                     MODEL_BUNDLE = train_models(session)
+                    from backend.app.modules.seed_data import seed_all_module_data
+                    seed_result = seed_all_module_data(session)
+                    print(f"[startup] Module seed complete: {seed_result.get('embeddings', 0)} embeddings, {seed_result.get('investigations', 0)} investigations")
                 return
             except Exception as exc:
                 last_error = exc

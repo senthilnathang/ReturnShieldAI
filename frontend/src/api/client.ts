@@ -11,7 +11,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
   });
   if (!response.ok) {
-    throw new Error(`Request failed with status ${response.status}`);
+    const text = await response.text().catch(() => 'Unknown error');
+    throw new Error(`Request failed with status ${response.status}: ${text}`);
   }
   return response.json() as Promise<T>;
 }
@@ -63,4 +64,8 @@ export const api = {
     request<Record<string, unknown>>('/monitoring/performance'),
   evaluateAlerts: (data: Record<string, unknown>) =>
     request<{ alerts_fired: Array<Record<string, unknown>> }>('/alerts/evaluate', { method: 'POST', body: JSON.stringify(data) }),
+  seedModuleData: () =>
+    request<{ seeded: boolean; results: Record<string, unknown> }>('/seed', { method: 'POST' }),
+  getModuleDashboard: () =>
+    request<Record<string, unknown>>('/modules/dashboard'),
 };
