@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState, type ChangeEvent, type Dispatch, type ReactNode, type SetStateAction } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { BrowserRouter, Link, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Ban, CheckCircle2, Flag, Hand, ShieldAlert, ThumbsUp } from 'lucide-react';
 import { api } from './api/client';
 import { AppShell } from './components/Layout/AppShell';
+import { ConfirmDialog } from './components/ui/ConfirmDialog';
+import { ToastProvider, useToast } from './contexts/ToastContext';
 import type { CaseDetail, CaseSummary, FeedbackRecord, Metrics, ReturnRequestPayload, Rule, ScoreResponse } from './types';
 
 const badgeTone = (risk: string) =>
@@ -933,9 +935,28 @@ function EnhancementsPage({ latest, cases }: { latest?: ScoreResponse; cases: Ca
   );
 }
 
+const actions = [
+  { label: 'Approve Return', value: 'AUTO_APPROVE', icon: ThumbsUp, tone: 'success' as const, needsConfirm: false },
+  { label: 'Reject Return', value: 'REJECT_RETURN', icon: Ban, tone: 'destructive' as const, needsConfirm: true },
+  { label: 'Hold Refund', value: 'HOLD_REFUND_HIGH_RISK', icon: Hand, tone: 'destructive' as const, needsConfirm: true },
+  { label: 'Escalate', value: 'MANUAL_REVIEW', icon: ShieldAlert, tone: 'warning' as const, needsConfirm: true },
+  { label: 'Confirmed Fraud', value: 'Mark Confirmed Fraud', icon: Flag, tone: 'destructive' as const, needsConfirm: true },
+  { label: 'False Positive', value: 'Mark False Positive', icon: CheckCircle2, tone: 'warning' as const, needsConfirm: false },
+];
+
+const actionToneMap = {
+  success: 'border-green-border bg-green-background text-green-primary hover:bg-green-border',
+  destructive: 'border-red-border bg-red-background text-red-primary hover:bg-red-border',
+  warning: 'border-yellow-border bg-yellow-background text-yellow-primary hover:bg-yellow-border',
+  default: 'border-grey-border bg-grey-background text-grey-primary hover:bg-grey-background-light',
+};
+
 function InvestigationPage({ caseDetail, onAction }: { caseDetail?: CaseDetail; onAction?: (decision: string, notes: string) => Promise<void> }) {
   const [notes, setNotes] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ label: string; value: string } | null>(null);
+  const { showToast } = useToast();
+
   if (!caseDetail) {
     return <Panel title="Investigations" subtitle="Select a case from the queue to inspect the evidence chain.">Loading…</Panel>;
   }
@@ -944,44 +965,82 @@ function InvestigationPage({ caseDetail, onAction }: { caseDetail?: CaseDetail; 
   const graph = caseDetail.advanced_signals?.graph_fraud as Record<string, unknown> | undefined;
   const explanationChips = caseDetail.reason_codes.slice(0, 4);
   const tracePreview = caseDetail.decision_trace.slice(0, 4);
-  const handle = async (decision: string) => {
+
+  const handle = async (decisionValue: string) => {
     if (!onAction) return;
-    setBusy(true);
-    await onAction(decision, notes);
-    setBusy(false);
+    setBusy(decisionValue);
+    try {
+      await onAction(decisionValue, notes);
+      showToast('success', 'Action completed', `Case updated with decision: ${decisionValue}`);
+    } catch {
+      showToast('error', 'Action failed', 'Unable to update the case. Please try again.');
+    } finally {
+      setBusy(null);
+      setConfirmAction(null);
+    }
   };
+
+  const statusColor =
+    caseDetail.status === 'CLOSED'
+      ? 'border-green-border bg-green-background text-green-primary'
+      : caseDetail.status === 'OPEN'
+        ? 'border-blue-96 bg-blue-96 text-blue-58'
+        : 'border-yellow-border bg-yellow-background text-yellow-primary';
+
+  const decisionColor =
+    caseDetail.decision === 'AUTO_APPROVE'
+      ? 'border-green-border bg-green-background text-green-primary'
+      : caseDetail.decision === 'HOLD_REFUND_HIGH_RISK'
+        ? 'border-red-border bg-red-background text-red-primary'
+        : caseDetail.decision === 'MANUAL_REVIEW'
+          ? 'border-yellow-border bg-yellow-background text-yellow-primary'
+          : 'border-grey-border bg-grey-background text-grey-primary';
 
   return (
     <div className="space-y-4">
+      <ConfirmDialog
+        open={confirmAction !== null}
+        title={confirmAction ? `Confirm: ${confirmAction.label}` : ''}
+        message="This action will update the case decision and record your feedback for model retraining."
+        confirmLabel={confirmAction?.label ?? ''}
+        confirmTone={
+          actions.find((a) => a.value === confirmAction?.value)?.tone === 'destructive'
+            ? 'destructive'
+            : 'default'
+        }
+        onConfirm={() => confirmAction && handle(confirmAction.value)}
+        onCancel={() => setConfirmAction(null)}
+      />
+
       <Panel title={`Case ${caseDetail.id.slice(0, 8)}`} subtitle={caseDetail.explanation}>
         <div className="grid gap-4 xl:grid-cols-[1.3fr_0.7fr]">
           <div className="space-y-3">
             <div className="flex flex-wrap gap-2">
               <span className={`rounded-full px-3 py-1 text-xs ${badgeTone(caseDetail.risk_level)}`}>{caseDetail.risk_level} risk</span>
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">Customer risk {caseDetail.customer_risk_score.toFixed(1)}</span>
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">{caseDetail.decision}</span>
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">{caseDetail.status}</span>
+              <span className="rounded-full border border-grey-border bg-grey-background px-3 py-1 text-xs text-grey-secondary">Customer risk {caseDetail.customer_risk_score.toFixed(1)}</span>
+              <span className={`rounded-full px-3 py-1 text-xs font-medium ${decisionColor}`}>{caseDetail.decision}</span>
+              <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusColor}`}>{caseDetail.status}</span>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-              <MetricCard label="Final score" value={caseDetail.risk_score.toFixed(1)} accent="text-blue-700" />
-              <MetricCard label="Customer risk" value={caseDetail.customer_risk_score.toFixed(1)} accent="text-sky-700" />
+              <MetricCard label="Final score" value={caseDetail.risk_score.toFixed(1)} accent="text-purple-primary" />
+              <MetricCard label="Customer risk" value={caseDetail.customer_risk_score.toFixed(1)} accent="text-orange-primary" />
               <MetricCard label="Rule score" value={caseDetail.score_breakdown.rule_score.toFixed(1)} />
               <MetricCard label="Structured" value={caseDetail.score_breakdown.structured_ml_score.toFixed(1)} />
               <MetricCard label="NLP score" value={caseDetail.score_breakdown.nlp_score.toFixed(1)} />
             </div>
           </div>
-          <div className="rounded-[28px] border border-slate-200 bg-slate-950 p-4 text-white shadow-[0_20px_50px_rgba(15,23,42,0.18)]">
-            <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400">Recommended action</div>
-            <div className="mt-2 text-lg font-semibold text-white">{caseDetail.recommended_action}</div>
-            <div className="mt-4 space-y-3 text-sm text-slate-300">
+          <div className="rounded-xl border border-grey-border bg-surface-elevated p-4">
+            <div className="text-xs uppercase tracking-[0.24em] text-grey-secondary">Recommended action</div>
+            <div className="mt-2 text-lg font-semibold text-grey-primary">{caseDetail.recommended_action}</div>
+            <div className="mt-4 space-y-2 text-sm text-grey-secondary">
               {tracePreview.map((item) => (
-                <div key={item.stage} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                <div key={item.stage} className="flex items-center justify-between rounded-lg border border-grey-border bg-grey-background-light px-3 py-2">
                   <span>{item.stage}</span>
-                  <span className="mono text-slate-100">{String(item.value)}</span>
+                  <span className="mono text-grey-primary">{String(item.value)}</span>
                 </div>
               ))}
             </div>
-            <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-xs leading-5 text-slate-300">
+            <div className="mt-4 rounded-lg border border-grey-border bg-grey-background-light px-3 py-3 text-xs leading-5 text-grey-secondary">
               Analyst notes are stored back into feedback so future model runs can learn from the decision.
             </div>
           </div>
@@ -991,68 +1050,85 @@ function InvestigationPage({ caseDetail, onAction }: { caseDetail?: CaseDetail; 
       <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
         <Panel title="Evidence wall" subtitle="Customer, order, return, and reason-code evidence in one place.">
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-              <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Customer</div>
-              <div className="mt-1 font-medium text-slate-900">{caseDetail.customer.name}</div>
-              <div className="mt-2 text-xs text-slate-500">{caseDetail.customer.email}</div>
+            <div className="rounded-lg border border-grey-border bg-grey-background-light p-4 text-sm text-grey-primary">
+              <div className="text-xs uppercase tracking-[0.2em] text-grey-secondary">Customer</div>
+              <div className="mt-1 font-medium text-grey-primary">{caseDetail.customer.name}</div>
+              <div className="mt-2 text-xs text-grey-secondary">{caseDetail.customer.email}</div>
             </div>
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-              <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Product</div>
-              <div className="mt-1 font-medium text-slate-900">{caseDetail.order.product_name}</div>
-              <div className="mt-2 text-xs text-slate-500">SKU {caseDetail.order.sku}</div>
+            <div className="rounded-lg border border-grey-border bg-grey-background-light p-4 text-sm text-grey-primary">
+              <div className="text-xs uppercase tracking-[0.2em] text-grey-secondary">Product</div>
+              <div className="mt-1 font-medium text-grey-primary">{caseDetail.order.product_name}</div>
+              <div className="mt-2 text-xs text-grey-secondary">SKU {caseDetail.order.sku}</div>
             </div>
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-              <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Expected weight</div>
-              <div className="mt-1 font-medium text-slate-900">{caseDetail.order.expected_weight} kg</div>
+            <div className="rounded-lg border border-grey-border bg-grey-background-light p-4 text-sm text-grey-primary">
+              <div className="text-xs uppercase tracking-[0.2em] text-grey-secondary">Expected weight</div>
+              <div className="mt-1 font-medium text-grey-primary">{caseDetail.order.expected_weight} kg</div>
             </div>
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-              <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Returned weight</div>
-              <div className="mt-1 font-medium text-slate-900">{returnData?.returned_weight ?? '—'} kg</div>
+            <div className="rounded-lg border border-grey-border bg-grey-background-light p-4 text-sm text-grey-primary">
+              <div className="text-xs uppercase tracking-[0.2em] text-grey-secondary">Returned weight</div>
+              <div className="mt-1 font-medium text-grey-primary">{returnData?.returned_weight ?? '—'} kg</div>
             </div>
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 sm:col-span-2">
-              <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Return reason</div>
-              <div className="mt-1 font-medium text-slate-900">{returnData?.return_reason ?? caseDetail.return_reason}</div>
+            <div className="rounded-lg border border-grey-border bg-grey-background-light p-4 text-sm text-grey-primary sm:col-span-2">
+              <div className="text-xs uppercase tracking-[0.2em] text-grey-secondary">Return reason</div>
+              <div className="mt-1 font-medium text-grey-primary">{returnData?.return_reason ?? caseDetail.return_reason}</div>
             </div>
           </div>
 
-          <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-4">
-            <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Reason codes</div>
+          <div className="mt-4 rounded-lg border border-grey-border bg-surface-card p-4">
+            <div className="text-xs uppercase tracking-[0.22em] text-grey-secondary">Reason codes</div>
             <div className="mt-3 flex flex-wrap gap-2">
               {explanationChips.length ? explanationChips.map((reason) => (
-                <span key={reason} className="rounded-full bg-blue-50 px-3 py-1 text-xs text-blue-700 ring-1 ring-blue-100">{reason}</span>
-              )) : <span className="text-sm text-slate-500">No reason codes available.</span>}
+                <span key={reason} className="rounded-full border border-purple-border-light bg-purple-background px-3 py-1 text-xs text-purple-primary">{reason}</span>
+              )) : <span className="text-sm text-grey-secondary">No reason codes available.</span>}
             </div>
           </div>
 
-          <div className="mt-4 rounded-3xl border border-slate-200 bg-slate-50 p-4">
-            <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Analyst summary</div>
-            <div className="mt-2 text-sm leading-6 text-slate-700">{caseDetail.explanation}</div>
+          <div className="mt-4 rounded-lg border border-grey-border bg-grey-background-light p-4">
+            <div className="text-xs uppercase tracking-[0.22em] text-grey-secondary">Analyst summary</div>
+            <div className="mt-2 text-sm leading-6 text-grey-primary">{caseDetail.explanation}</div>
           </div>
         </Panel>
 
         <Panel title="Decision trail" subtitle="Trace the path from intake to final score and decision.">
-          <div className="space-y-3">
+          <div className="space-y-2">
             {caseDetail.decision_trace.map((item, index) => (
-              <div key={item.stage} className="rounded-[22px] border border-slate-200 bg-slate-50 p-4 shadow-sm">
+              <div key={item.stage} className="rounded-lg border border-grey-border bg-grey-background-light p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Step {index + 1}</div>
-                    <div className="mt-1 text-sm font-medium text-slate-900">{item.stage}</div>
+                    <div className="text-xs uppercase tracking-[0.2em] text-grey-secondary">Step {index + 1}</div>
+                    <div className="mt-0.5 text-sm font-medium text-grey-primary">{item.stage}</div>
                   </div>
-                  <div className="rounded-full bg-white px-2.5 py-1 font-mono text-[11px] text-slate-600 ring-1 ring-slate-200">
+                  <div className="rounded-full border border-grey-border bg-surface-card px-2.5 py-0.5 font-mono text-xs text-grey-primary">
                     {String(item.value)}
                   </div>
                 </div>
               </div>
             ))}
           </div>
-          <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-4">
-            <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Analyst actions</div>
-            <textarea value={notes} onChange={(event) => setNotes(event.target.value)} className="mt-3 min-h-[140px] w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm outline-none placeholder:text-slate-500" placeholder="Add notes for retraining" />
+          <div className="mt-4 rounded-lg border border-grey-border bg-surface-card p-4">
+            <div className="text-xs uppercase tracking-[0.22em] text-grey-secondary">Analyst actions</div>
+            <textarea
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              className="mt-3 min-h-[100px] w-full rounded-lg border border-grey-border bg-grey-background p-3 text-sm outline-none placeholder:text-grey-placeholder transition-colors focus:border-purple-border"
+              placeholder="Add notes for retraining..."
+            />
             <div className="mt-3 grid grid-cols-2 gap-2">
-              {[['Approve Return', 'AUTO_APPROVE'], ['Reject Return', 'REJECT_RETURN'], ['Hold Refund', 'HOLD_REFUND_HIGH_RISK'], ['Escalate', 'MANUAL_REVIEW'], ['Confirmed Fraud', 'Mark Confirmed Fraud'], ['False Positive', 'Mark False Positive']].map(([label, decision]) => (
-                <button key={decision} disabled={busy} onClick={() => handle(decision)} className="rounded-2xl border border-slate-200 bg-slate-100 px-3 py-3 text-sm transition hover:bg-slate-200 disabled:opacity-50">
-                  {label}
+              {actions.map(({ label, value, icon: Icon, tone, needsConfirm }) => (
+                <button
+                  key={value}
+                  disabled={busy !== null}
+                  onClick={() => {
+                    if (needsConfirm) {
+                      setConfirmAction({ label, value });
+                    } else {
+                      handle(value);
+                    }
+                  }}
+                  className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-xs font-medium transition-colors disabled:opacity-40 ${actionToneMap[tone]}`}
+                >
+                  <Icon className="size-4 shrink-0" />
+                  {busy === value ? 'Processing...' : label}
                 </button>
               ))}
             </div>
@@ -1063,22 +1139,22 @@ function InvestigationPage({ caseDetail, onAction }: { caseDetail?: CaseDetail; 
       <div className="grid gap-4 xl:grid-cols-[1.08fr_0.92fr]">
         <Panel title="Customer profile" subtitle="The customer and shipment context behind the return request.">
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"><div className="text-xs uppercase tracking-[0.2em] text-slate-400">Name</div><div className="mt-1 font-medium text-slate-900">{caseDetail.customer.name}</div></div>
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"><div className="text-xs uppercase tracking-[0.2em] text-slate-400">Email</div><div className="mt-1 break-all font-medium text-slate-900">{caseDetail.customer.email}</div></div>
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"><div className="text-xs uppercase tracking-[0.2em] text-slate-400">Account age</div><div className="mt-1 font-medium text-slate-900">{caseDetail.customer.account_age_days} days</div></div>
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"><div className="text-xs uppercase tracking-[0.2em] text-slate-400">Returns</div><div className="mt-1 font-medium text-slate-900">{caseDetail.customer.lifetime_returns}</div></div>
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 sm:col-span-2"><div className="text-xs uppercase tracking-[0.2em] text-slate-400">Address</div><div className="mt-1 font-medium text-slate-900">{caseDetail.customer.address}</div></div>
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 sm:col-span-2"><div className="text-xs uppercase tracking-[0.2em] text-slate-400">Device</div><div className="mt-1 font-medium text-slate-900">{caseDetail.customer.device_id}</div></div>
+            <div className="rounded-lg border border-grey-border bg-grey-background-light p-4 text-sm text-grey-primary"><div className="text-xs uppercase tracking-[0.2em] text-grey-secondary">Name</div><div className="mt-1 font-medium text-grey-primary">{caseDetail.customer.name}</div></div>
+            <div className="rounded-lg border border-grey-border bg-grey-background-light p-4 text-sm text-grey-primary"><div className="text-xs uppercase tracking-[0.2em] text-grey-secondary">Email</div><div className="mt-1 break-all font-medium text-grey-primary">{caseDetail.customer.email}</div></div>
+            <div className="rounded-lg border border-grey-border bg-grey-background-light p-4 text-sm text-grey-primary"><div className="text-xs uppercase tracking-[0.2em] text-grey-secondary">Account age</div><div className="mt-1 font-medium text-grey-primary">{caseDetail.customer.account_age_days} days</div></div>
+            <div className="rounded-lg border border-grey-border bg-grey-background-light p-4 text-sm text-grey-primary"><div className="text-xs uppercase tracking-[0.2em] text-grey-secondary">Returns</div><div className="mt-1 font-medium text-grey-primary">{caseDetail.customer.lifetime_returns}</div></div>
+            <div className="rounded-lg border border-grey-border bg-grey-background-light p-4 text-sm text-grey-primary sm:col-span-2"><div className="text-xs uppercase tracking-[0.2em] text-grey-secondary">Address</div><div className="mt-1 font-medium text-grey-primary">{caseDetail.customer.address}</div></div>
+            <div className="rounded-lg border border-grey-border bg-grey-background-light p-4 text-sm text-grey-primary sm:col-span-2"><div className="text-xs uppercase tracking-[0.2em] text-grey-secondary">Device</div><div className="mt-1 font-medium text-grey-primary">{caseDetail.customer.device_id}</div></div>
           </div>
         </Panel>
         <Panel title="Order and return" subtitle="Shipment and reverse-logistics evidence used by the decision engine.">
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"><div className="text-xs uppercase tracking-[0.2em] text-slate-400">Product</div><div className="mt-1 font-medium text-slate-900">{caseDetail.order.product_name}</div></div>
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"><div className="text-xs uppercase tracking-[0.2em] text-slate-400">SKU</div><div className="mt-1 font-medium text-slate-900">{caseDetail.order.sku}</div></div>
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"><div className="text-xs uppercase tracking-[0.2em] text-slate-400">Value</div><div className="mt-1 font-medium text-slate-900">${caseDetail.order.product_value.toLocaleString()}</div></div>
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"><div className="text-xs uppercase tracking-[0.2em] text-slate-400">Expected weight</div><div className="mt-1 font-medium text-slate-900">{caseDetail.order.expected_weight} kg</div></div>
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"><div className="text-xs uppercase tracking-[0.2em] text-slate-400">Returned weight</div><div className="mt-1 font-medium text-slate-900">{returnData?.returned_weight ?? "—"} kg</div></div>
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 sm:col-span-2"><div className="text-xs uppercase tracking-[0.2em] text-slate-400">Reason</div><div className="mt-1 font-medium text-slate-900">{returnData?.return_reason ?? caseDetail.return_reason}</div></div>
+            <div className="rounded-lg border border-grey-border bg-grey-background-light p-4 text-sm text-grey-primary"><div className="text-xs uppercase tracking-[0.2em] text-grey-secondary">Product</div><div className="mt-1 font-medium text-grey-primary">{caseDetail.order.product_name}</div></div>
+            <div className="rounded-lg border border-grey-border bg-grey-background-light p-4 text-sm text-grey-primary"><div className="text-xs uppercase tracking-[0.2em] text-grey-secondary">SKU</div><div className="mt-1 font-medium text-grey-primary">{caseDetail.order.sku}</div></div>
+            <div className="rounded-lg border border-grey-border bg-grey-background-light p-4 text-sm text-grey-primary"><div className="text-xs uppercase tracking-[0.2em] text-grey-secondary">Value</div><div className="mt-1 font-medium text-grey-primary">${caseDetail.order.product_value.toLocaleString()}</div></div>
+            <div className="rounded-lg border border-grey-border bg-grey-background-light p-4 text-sm text-grey-primary"><div className="text-xs uppercase tracking-[0.2em] text-grey-secondary">Expected weight</div><div className="mt-1 font-medium text-grey-primary">{caseDetail.order.expected_weight} kg</div></div>
+            <div className="rounded-lg border border-grey-border bg-grey-background-light p-4 text-sm text-grey-primary"><div className="text-xs uppercase tracking-[0.2em] text-grey-secondary">Returned weight</div><div className="mt-1 font-medium text-grey-primary">{returnData?.returned_weight ?? "—"} kg</div></div>
+            <div className="rounded-lg border border-grey-border bg-grey-background-light p-4 text-sm text-grey-primary sm:col-span-2"><div className="text-xs uppercase tracking-[0.2em] text-grey-secondary">Reason</div><div className="mt-1 font-medium text-grey-primary">{returnData?.return_reason ?? caseDetail.return_reason}</div></div>
           </div>
         </Panel>
       </div>
@@ -1583,7 +1659,9 @@ function AppInner() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AppInner />
+      <ToastProvider>
+        <AppInner />
+      </ToastProvider>
     </BrowserRouter>
   );
 }
