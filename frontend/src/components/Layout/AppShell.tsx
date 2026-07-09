@@ -12,6 +12,7 @@ import {
   Shield,
   Sparkles,
   SlidersHorizontal,
+  Database,
 } from 'lucide-react';
 
 import { LeftSidebar } from './LeftSidebar';
@@ -37,6 +38,7 @@ const navSections = [
     items: [
       { to: '/rules', label: 'Rules', icon: SlidersHorizontal },
       { to: '/feedback', label: 'Feedback', icon: Sparkles },
+      { to: '/batch-monitor', label: 'Batch Monitor', icon: Database },
     ],
   },
 ] as const;

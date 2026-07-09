@@ -1,4 +1,5 @@
-# ReturnShield AI## Return fraud decisioning that catches what checkout fraud tools miss
+# ReturnShield AI
+## Rule-led supervised fraud scoring for return decisions
 
 **Bifold copy source**
 
@@ -34,28 +35,31 @@ ReturnShield AI works as an operational fraud console, not just a scoring endpoi
 - Fraud ring visibility across connected accounts
 - Reason codes that support analyst action
 
-### Typical Workflow
+### Decision Path
 1. Return request arrives.
 2. Payload is normalized.
-3. Rules and models score the case.
-4. The return is approved, reviewed, or held.
-5. Analyst feedback is stored for improvement.
+3. Rules and supervised ML score the case.
+4. NLP, graph, and anomaly signals support explanation.
+5. The return is approved, reviewed, or held.
+6. Analyst feedback is stored for improvement.
 
 <div style="page-break-after: always;"></div>
 
 # Inside Right
 ## Algorithm and Accuracy
 
-ReturnShield AI combines rules, structured ML, NLP, and anomaly detection instead of trusting any single field.
+ReturnShield AI uses a rule-led supervised model for the live score. NLP, graph, and anomaly signals remain available for explanation and manual review.
 
 ### Scoring Formula
 ```text
 final_score =
-  (rule_score * 0.30) +
-  (structured_ml_score * 0.30) +
-  (nlp_score * 0.25) +
-  (anomaly_score * 0.15)
+  (rule_score * 0.35) +
+  (ml_score * 0.65)
 ```
+
+### Fallback
+- If the promoted model artifact is unavailable, the scorer uses a heuristic fallback.
+- The API still returns a decision so operations keep flowing.
 
 ### Decision Bands
 - `0-39` -> `AUTO_APPROVE`
@@ -63,9 +67,9 @@ final_score =
 - `70-100` -> `HOLD_REFUND`
 
 ### Accuracy Story
-- Precision on obvious fraud
-- Recall on subtle fraud
-- Consistency across repeated cases
-- Reviewability for analysts and auditors
+- PR-AUC is the primary model-selection metric
+- Recall and precision are tracked for fraud imbalance
+- F1 and false positive rate are used to break ties
+- Training runs and metrics are stored in PostgreSQL
 
-The repo tracks precision, recall, and F1 in training runs, but it does not publish audited benchmark percentages. That keeps the pitch credible and print-safe.
+The repo supports four supervised model families: Logistic Regression, Random Forest, XGBoost, and a PyTorch neural network. It documents the evaluation pipeline, but it does not invent benchmark percentages.

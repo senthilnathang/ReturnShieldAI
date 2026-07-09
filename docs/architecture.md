@@ -25,7 +25,7 @@ The system has two parallel architectures:
 │                                                                   │
 │  Services:                                                        │
 │   ImportService -> chunked CSV parsing + auto-mapping            │
-│   ScoringStubService -> rules + ML fallback score                 │
+│   ScoringStubService -> rule-led supervised score with heuristic fallback                 │
 │   ML engine -> train, register, predict, promote best model      │
 │   DashboardService -> cached aggregation                          │
 │   CacheService -> Redis TTL caching                               │
@@ -97,7 +97,7 @@ Training request or worker job
 3. Return is enqueued to Redis Stream for async scoring
 4. Worker consumes the stream entry
 5. Rule stub evaluates 8 conditions: return frequency, product value, weight mismatch, quick return, chargeback history, refund account reuse, suspicious text, new account
-6. ML score is retrieved from the best available supervised model; if no artifact exists, the stub uses a heuristic fallback and logs a warning
+6. ML score is retrieved from the best available supervised model; if no artifact exists, the scorer uses a heuristic fallback and logs a warning
 7. FraudScore record created with breakdown
 8. FraudCase record created for score >= 40
 9. Analyst reviews the case and submits feedback
@@ -124,12 +124,13 @@ Full listing: `merchants`, `customers`, `customer_identities`, `orders`, `shipme
 
 ## Scoring Model
 
-Fusion formula:
+Current scoring formula:
 ```
 final_score =
   (rule_score * 0.35) +
-  (structured_ml_score * 0.65)
+  (ml_score * 0.65)
 ```
+Fallback: if no promoted model artifact exists, the scorer uses a heuristic path and logs a warning.
 
 Decision mapping:
 - `0-39` -> `AUTO_APPROVE`
@@ -148,7 +149,7 @@ Decision mapping:
 - training comparison and model promotion
 
 ### Legacy ML Layer
-The older `backend/app/ml/` modules remain in place for the existing fusion engine and future feature expansion.
+The older `backend/app/ml/` modules remain in place for compatibility and future signal expansion.
 
 ## Component Map
 
@@ -234,3 +235,8 @@ The system leaves room for:
 - SHAP explainability integration
 - Multi-tenancy with full merchant isolation
 - model registry rollback and blue/green model promotion
+
+
+## Business Logic Architecture
+
+See [docs/business-logic-architecture.md](business-logic-architecture.md) and [docs/decisioning-architecture.md](decisioning-architecture.md) for the end-to-end flow from return request to model promotion.

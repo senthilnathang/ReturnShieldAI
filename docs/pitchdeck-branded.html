@@ -593,10 +593,10 @@
     </table>
 
     <div class="formula">final_score =
-  (rule_score * 0.30) +
-  (structured_ml_score * 0.30) +
-  (nlp_score * 0.25) +
-  (anomaly_score * 0.15)</div>
+  (rule_score * 0.35) +
+  (ml_score * 0.65)</div>
+
+    <div class="note" style="margin-top: 10px;">Fallback mode keeps the API responsive when the promoted model artifact is unavailable.</div>
 
     <div class="bands">
       <div class="band">
@@ -617,7 +617,7 @@
     </div>
 
     <div class="footer">
-      <div><strong>Algorithm</strong> · fused scoring</div>
+      <div><strong>Algorithm</strong> · rule-led supervised scoring</div>
       <div>Page 3</div>
     </div>
   </section>

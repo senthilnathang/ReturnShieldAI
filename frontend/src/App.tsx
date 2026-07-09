@@ -2020,6 +2020,83 @@ function GraphAnalyticsPage() {
   );
 }
 
+function ImportBatchMonitor() {
+  const [jobs, setJobs] = useState<Record<string, unknown>[]>([]);
+  const [jobsLoading, setJobsLoading] = useState(false);
+
+  const loadJobs = async () => {
+    setJobsLoading(true);
+    try {
+      const res = await api.getImportJobs(0, 24);
+      setJobs(res as Record<string, unknown>[]);
+    } catch {
+      setJobs([]);
+    } finally {
+      setJobsLoading(false);
+    }
+  };
+
+  useEffect(() => { loadJobs(); }, []);
+
+  return (
+    <div className="space-y-4">
+      <PageHeader
+        eyebrow="Data Import"
+        title="Batch Monitor"
+        subtitle="Completed load chunks recorded in the database. Refresh to see the latest batches land while the loader runs."
+      />
+      <Panel title="Batch history" subtitle="Each row is a completed loader batch or import job.">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="text-sm text-slate-600">Shows the latest `import_jobs` rows created by the loader or Kaggle import flow.</div>
+          <button onClick={loadJobs} className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            {jobsLoading ? 'Refreshing...' : 'Refresh'}
+          </button>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Batches</div>
+            <div className="mt-2 text-lg font-semibold text-slate-900">{jobs.length}</div>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Rows loaded</div>
+            <div className="mt-2 text-lg font-semibold text-slate-900">{jobs.reduce((sum, job) => sum + Number(job.processed_rows ?? 0), 0).toLocaleString()}</div>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Latest batch</div>
+            <div className="mt-2 text-lg font-semibold text-slate-900">{String(jobs[0]?.status ?? '—')}</div>
+          </div>
+        </div>
+        <div className="mt-4 overflow-x-auto rounded-3xl border border-slate-200">
+          <table className="min-w-full text-left text-xs">
+            <thead className="bg-slate-50 text-slate-500">
+              <tr>
+                <th className="px-4 py-3 font-medium">Created</th>
+                <th className="px-4 py-3 font-medium">Source</th>
+                <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium">Rows</th>
+                <th className="px-4 py-3 font-medium">Batch info</th>
+              </tr>
+            </thead>
+            <tbody>
+              {jobs.length ? jobs.map((job) => (
+                <tr key={String(job.id)} className="border-t border-slate-100 bg-white">
+                  <td className="px-4 py-3 text-slate-700">{String(job.created_at ?? '—')}</td>
+                  <td className="px-4 py-3 text-slate-700">{String(job.source_name ?? '—')}</td>
+                  <td className="px-4 py-3 text-slate-700">{String(job.status ?? '—')}</td>
+                  <td className="px-4 py-3 text-slate-700">{`${Number(job.processed_rows ?? 0).toLocaleString()} / ${Number(job.total_rows ?? 0).toLocaleString()}`}</td>
+                  <td className="px-4 py-3 text-slate-700">{job.metadata_json ? JSON.stringify(job.metadata_json) : '—'}</td>
+                </tr>
+              )) : (
+                <tr><td className="px-4 py-6 text-slate-500" colSpan={5}>No completed batches yet.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
 function KaggleImportPage() {
   const [datasetInput, setDatasetInput] = useState("");
   const [maxRows, setMaxRows] = useState(5000);
@@ -2030,10 +2107,26 @@ function KaggleImportPage() {
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<Record<string, unknown> | string | null>(null);
   const [modelFields, setModelFields] = useState<Record<string, Record<string, unknown>>>({});
+  const [jobs, setJobs] = useState<Record<string, unknown>[]>([]);
+  const [jobsLoading, setJobsLoading] = useState(false);
 
   useEffect(() => {
     fetch('/api/kaggle/model-fields').then((r) => r.json()).then((d) => setModelFields(d.model_fields as Record<string, Record<string, unknown>>)).catch(() => undefined);
   }, []);
+
+  const loadJobs = async () => {
+    setJobsLoading(true);
+    try {
+      const res = await api.getImportJobs(0, 12);
+      setJobs(res as Record<string, unknown>[]);
+    } catch {
+      setJobs([]);
+    } finally {
+      setJobsLoading(false);
+    }
+  };
+
+  useEffect(() => { loadJobs(); }, []);
 
   const handlePreview = async () => {
     const datasetId = datasetInput.trim();
@@ -2071,6 +2164,7 @@ function KaggleImportPage() {
     try {
       const res = await api.importKaggleWithMapping(datasetId, mapping, maxRows);
       setResult(res);
+      void loadJobs();
     } catch (e) {
       setResult(String(e));
     } finally {
@@ -2083,7 +2177,7 @@ function KaggleImportPage() {
       <PageHeader
         eyebrow="Data Import"
         title="Kaggle Dataset Import"
-        subtitle="Enter any Kaggle dataset ID, preview its schema, configure column mappings, then import."
+        subtitle="Enter any Kaggle dataset ID, preview its schema, configure column mappings, then import. The batch monitor below shows completed load chunks from the database."
       />
 
       <Panel title="Dataset" subtitle="Enter a Kaggle dataset identifier (e.g. akrambelha/global-e-commerce-dataset-1m-records-20242026)">
@@ -2738,6 +2832,7 @@ function AppInner() {
         <Route path="/graph-analytics" element={<GraphAnalyticsPage />} />
         <Route path="/modules" element={<ModuleDashboardPage />} />
         <Route path="/kaggle" element={<KaggleImportPage />} />
+        <Route path="/batch-monitor" element={<ImportBatchMonitor />} />
         <Route path="/alerts" element={<AlertsPage />} />
         <Route path="/merchants" element={<MerchantsPage />} />
         <Route path="/models" element={<ModelsPage />} />

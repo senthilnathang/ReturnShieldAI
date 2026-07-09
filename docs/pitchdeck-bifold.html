@@ -705,17 +705,17 @@
             <div class="signal-value">82</div>
           </div>
           <div class="signal-row">
-            <div class="signal-label">Structured ML</div>
+            <div class="signal-label">Supervised ML</div>
             <div class="signal-track"><div class="signal-fill" style="width: 74%;"></div></div>
             <div class="signal-value">74</div>
           </div>
           <div class="signal-row">
-            <div class="signal-label">NLP</div>
+            <div class="signal-label">Explainability</div>
             <div class="signal-track"><div class="signal-fill" style="width: 68%;"></div></div>
             <div class="signal-value">68</div>
           </div>
           <div class="signal-row">
-            <div class="signal-label">Anomaly</div>
+            <div class="signal-label">Fallback</div>
             <div class="signal-track"><div class="signal-fill" style="width: 58%;"></div></div>
             <div class="signal-value">58</div>
           </div>
@@ -758,7 +758,7 @@
     <article class="panel">
       <h2 class="panel-title">Algorithm and accuracy</h2>
       <p class="lead">
-        The model combines signals instead of trusting any single field.
+        The live path is rule-led supervised ML. NLP, graph, and anomaly signals stay available for explanation and manual review.
       </p>
 
       <div class="section">
@@ -777,17 +777,17 @@
               <td>Fast guardrails for known patterns</td>
             </tr>
             <tr>
-              <td><strong>Structured ML</strong></td>
+              <td><strong>Supervised ML</strong></td>
               <td>Customer, order, shipment, return fields</td>
               <td>Finds hidden tabular patterns</td>
             </tr>
             <tr>
-              <td><strong>NLP</strong></td>
+              <td><strong>NLP / text</strong></td>
               <td>Return reasons and support text</td>
               <td>Catches suspicious language shifts</td>
             </tr>
             <tr>
-              <td><strong>Anomaly detection</strong></td>
+              <td><strong>Graph / anomaly</strong></td>
               <td>Outliers and unusual combinations</td>
               <td>Flags abnormal behavior</td>
             </tr>
@@ -795,10 +795,12 @@
         </table>
 
         <div class="formula">final_score =
-  (rule_score * 0.30) +
-  (structured_ml_score * 0.30) +
-  (nlp_score * 0.25) +
-  (anomaly_score * 0.15)</div>
+  (rule_score * 0.35) +
+  (ml_score * 0.65)</div>
+
+        <div class="note" style="margin-top: 10px;">
+          Fallback mode keeps the API responsive when the promoted model artifact is unavailable.
+        </div>
       </div>
 
       <div class="bands">
@@ -823,15 +825,14 @@
         <h3>Accuracy story</h3>
         <div class="card">
           <ul class="list" style="margin-top: 0;">
-            <li>Precision on obvious fraud</li>
-            <li>Recall on subtle fraud</li>
-            <li>Consistency across repeated cases</li>
+            <li>PR-AUC for model selection</li>
+            <li>Recall and precision on fraud cases</li>
+            <li>F1 and false positive rate for tie-breaks</li>
             <li>Reviewability for analysts and auditors</li>
           </ul>
         </div>
         <div class="note">
-          The repo tracks precision, recall, and F1 in training runs, but it does not publish audited benchmark
-          percentages. That keeps the pitch credible.
+          The repo tracks precision, recall, F1, ROC-AUC, and PR-AUC in training runs, but it does not publish audited benchmark percentages. That keeps the pitch credible.
         </div>
       </div>
     </article>

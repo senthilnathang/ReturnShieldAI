@@ -81,6 +81,13 @@ export const api = {
     request<Record<string, unknown>>('/models'),
   getMonitoringPerformance: () =>
     request<Record<string, unknown>>('/monitoring/performance'),
+  getImportJobs: (skip?: number, limit?: number) => {
+    const params = new URLSearchParams();
+    if (skip) params.set('skip', String(skip));
+    if (limit) params.set('limit', String(limit));
+    const qs = params.toString();
+    return request<Array<Record<string, unknown>>>(`/imports${qs ? `?${qs}` : ''}`);
+  },
   evaluateAlerts: (data: Record<string, unknown>) =>
     request<{ alerts_fired: Array<Record<string, unknown>> }>('/alerts/evaluate', { method: 'POST', body: JSON.stringify(data) }),
   seedModuleData: () =>

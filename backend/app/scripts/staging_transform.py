@@ -80,7 +80,7 @@ def main():
 
     cur.execute("DECLARE c CURSOR WITH HOLD FOR SELECT * FROM staging")
     while True:
-        cur.execute("FETCH FORWARD 5000 FROM c")
+        cur.execute("FETCH FORWARD 25000 FROM c")
         rows = cur.fetchall()
         if not rows:
             break
@@ -166,13 +166,12 @@ def main():
             if total % 5000 == 0:
                 log.info("  Processed: %s rows", f"{total:,}")
 
-        # Flush every 5K, commit every 50K
-        if total > 0 and total % 5000 == 0:
-            _flush_all(cur, buf)
-        if total > 0 and total % 50000 == 0:
-            conn.commit()
+        # Flush + commit after every 25K chunk
+        _flush_all(cur, buf)
+        conn.commit()
+        log.info("  Committed: %s rows", f"{total:,}")
 
-    # Final flush + commit
+    # Final flush (shouldn't have anything left)
     _flush_all(cur, buf)
     conn.commit()
     cur.close()

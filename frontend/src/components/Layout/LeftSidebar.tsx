@@ -44,6 +44,7 @@ const navSections = [
       { to: '/models', label: 'Model Registry', icon: Warehouse },
       { to: '/monitoring', label: 'Model Health', icon: Activity },
       { to: '/kaggle', label: 'Kaggle Import', icon: Database },
+      { to: '/batch-monitor', label: 'Batch Monitor', icon: Activity },
     ],
   },
 ] as const;
