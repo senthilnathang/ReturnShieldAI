@@ -2718,7 +2718,7 @@ function AppInner() {
     api.getFeedback().then((res) => setFeedback(res.items)).catch(() => undefined);
   }, []);
 
-  const handleDecision = async (id: string, decision: string, notes: string) => {
+  const handleDecision = async (decision: string, notes: string, id: string) => {
     const confirmedLabel = decision === "Mark Confirmed Fraud" ? "confirmed_fraud" : decision === "Mark False Positive" ? "false_positive" : undefined;
     await api.updateDecision(id, { decision, notes, confirmed_label: confirmedLabel });
     await Promise.all([refreshData(), api.getFeedback().then((res) => setFeedback(res.items))]);
