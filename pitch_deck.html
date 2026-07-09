@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ReturnShieldAI — Pitch Deck</title>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  html { font-size: 16px; scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: #0a0e27;
+    color: #e8edf5;
+    line-height: 1.6;
+  }
+  .slide {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 5rem 8rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .slide::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -30%;
+    width: 70%;
+    height: 140%;
+    background: radial-gradient(ellipse, rgba(0, 180, 255, 0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .slide::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(0, 145, 255, 0.3), transparent);
+  }
+  .slide-number {
+    position: absolute;
+    bottom: 2rem;
+    right: 3rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: rgba(255,255,255,0.2);
+    letter-spacing: 0.15em;
+  }
+  h1 {
+    font-size: 4rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    background: linear-gradient(135deg, #ffffff 0%, #6dd5ff 50%, #0091ff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  h2 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 1.5rem;
+    color: #f0f4ff;
+  }
+  h2 .accent {
+    background: linear-gradient(135deg, #00b4ff, #0070f3);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #6dd5ff;
+    margin-bottom: 0.75rem;
+  }
+  p { font-size: 1.125rem; color: #b0c4e8; max-width: 42rem; }
+  p.lead { font-size: 1.35rem; color: #c8d8f0; line-height: 1.7; }
+  .grid { display: grid; gap: 2rem; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 1.25rem;
+    padding: 2rem;
+    backdrop-filter: blur(8px);
+    transition: transform 0.2s, border-color 0.2s;
+  }
+  .card:hover { transform: translateY(-2px); border-color: rgba(0,145,255,0.3); }
+  .card .icon { font-size: 2rem; margin-bottom: 0.75rem; }
+  .card h4 { font-size: 1.1rem; font-weight: 600; color: #e8edf5; margin-bottom: 0.5rem; }
+  .card p { font-size: 0.9rem; color: #8fa8cc; }
+  .stat {
+    font-size: 3rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #00b4ff, #0070f3);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.1;
+  }
+  .stat-label { font-size: 0.85rem; color: #8fa8cc; margin-top: 0.25rem; }
+  .badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.3rem 0.75rem;
+    border-radius: 100px;
+    background: rgba(0, 145, 255, 0.12);
+    color: #6dd5ff;
+    border: 1px solid rgba(0, 145, 255, 0.2);
+    margin-bottom: 1rem;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  th {
+    text-align: left;
+    font-weight: 600;
+    color: #6dd5ff;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    color: #b0c4e8;
+  }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .highlight { color: #00b4ff; font-weight: 600; }
+  .emoji-big { font-size: 3rem; margin-bottom: 1rem; display: block; }
+  .logo-text {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #ffffff, #6dd5ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 0.25rem;
+  }
+  .tagline { font-size: 0.85rem; color: #6dd5ff; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; }
+  .flow { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; justify-content: center; }
+  .flow-step {
+    background: rgba(0,145,255,0.08);
+    border: 1px solid rgba(0,145,255,0.15);
+    border-radius: 0.75rem;
+    padding: 0.6rem 1.2rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #c8d8f0;
+  }
+  .flow-arrow { color: rgba(255,255,255,0.15); font-size: 1.2rem; }
+  .use-table td:first-child { font-weight: 600; color: #e8edf5; }
+  .use-table td:last-child { text-align: right; font-weight: 600; color: #6dd5ff; }
+  @media print {
+    body { background: white; color: #1a1a2e; }
+    .slide { min-height: 100vh; padding: 2rem 3rem; page-break-after: always; }
+    h1 { -webkit-text-fill-color: #0a0e27; color: #0a0e27; background: none; }
+    h2 .accent { -webkit-text-fill-color: #0070f3; color: #0070f3; background: none; }
+    .stat { -webkit-text-fill-color: #0070f3; color: #0070f3; background: none; }
+    .card { background: #f8fafc; border-color: #e2e8f0; }
+    .card p, p, p.lead { color: #475569; }
+    td { color: #475569; }
+    .badge { background: #e0f2fe; color: #0369a1; border-color: #bae6fd; }
+    .slide::before, .slide::after { display: none; }
+    .flow-step { background: #f1f5f9; border-color: #cbd5e1; color: #334155; }
+    h2 { color: #0f172a; }
+    .logo-text { -webkit-text-fill-color: #0a0e27; color: #0a0e27; background: none; }
+    .slide-number { color: #94a3b8; }
+  }
+</style>
+</head>
+<body>
+
+<!-- SLIDE 1: Title -->
+<section class="slide" style="padding-top: 6rem;">
+  <span class="slide-number">01/13</span>
+  <div style="display: flex; flex-direction: column; gap: 1.5rem; max-width: 52rem;">
+    <span class="badge">Seed Stage — AI / E-commerce Infrastructure</span>
+    <h1 style="font-size: 4.5rem;">ReturnShieldAI</h1>
+    <p class="lead" style="font-size: 1.5rem; color: #8fa8cc;">The first AI platform built exclusively to detect and prevent e-commerce <span style="color: #00b4ff; font-weight: 600;">return fraud</span>.</p>
+    <div style="display: flex; gap: 2rem; margin-top: 1rem;">
+      <div><div class="stat">$50B+</div><div class="stat-label">Annual return fraud losses</div></div>
+      <div><div class="stat">18%</div><div class="stat-label">YoY fraud growth</div></div>
+      <div><div class="stat">20</div><div class="stat-label">Modular engines</div></div>
+      <div><div class="stat">150ms</div><div class="stat-label">Per-request scoring</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 2: Problem -->
+<section class="slide">
+  <span class="slide-number">02/13</span>
+  <span class="badge">The problem</span>
+  <h2>Return fraud is the <span class="accent">$50B blind spot</span> in e-commerce</h2>
+  <p class="lead">Every fraud platform stops crime at checkout. Return fraud happens <em>after</em> the transaction — invisible to legacy tools.</p>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2.5rem;">
+    <div class="card">
+      <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📊</div>
+      <div class="stat" style="font-size: 2rem;">13.7%</div>
+      <div class="stat-label">Average e-commerce return rate</div>
+    </div>
+    <div class="card">
+      <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📈</div>
+      <div class="stat" style="font-size: 2rem;">67%</div>
+      <div class="stat-label">Of merchants report rising return fraud YoY (NRF 2025)</div>
+    </div>
+  </div>
+  <div style="margin-top: 2.5rem;">
+    <table>
+      <tr><th>Dimension</th><th>Payment Fraud</th><th style="color:#00b4ff;">Return Fraud</th></tr>
+      <tr><td>Detection point</td><td>Checkout (pre-transaction)</td><td style="color:#6dd5ff;">Post-fulfillment (days later)</td></tr>
+      <tr><td>Data signals</td><td>~50 features</td><td style="color:#6dd5ff;">200+ features across order, text, graph, images</td></tr>
+      <tr><td>Attack surface</td><td>Card details</td><td style="color:#6dd5ff;">Physical goods, labels, weight, chat, photos</td></tr>
+      <tr><td>Existing coverage</td><td>Excellent (Stripe, Sift, Forter)</td><td style="color:#6dd5ff;">Near zero</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- SLIDE 3: Fraud Patterns -->
+<section class="slide">
+  <span class="slide-number">03/13</span>
+  <span class="badge">The attack surface</span>
+  <h2>10 fraud patterns that legacy tools <span class="accent">can't detect</span></h2>
+  <div class="grid grid-3" style="margin-top: 2rem;">
+    <div class="card"><span class="emoji-big">📦</span><h4>Empty box scam</h4><p>Customer claims item missing, returns empty packaging with original weight faked.</p></div>
+    <div class="card"><span class="emoji-big">⚖️</span><h4>Weight fraud</h4><p>Returned package weighs significantly less than shipped — partial contents returned.</p></div>
+    <div class="card"><span class="emoji-big">👗</span><h4>Wardrobing</h4><p>Buy, wear once, return. Classic apparel fraud invisible to checkout tools.</p></div>
+    <div class="card"><span class="emoji-big">🔄</span><h4>Price arbitrage</h4><p>Buy on discount, return with higher-priced receipt for profit.</p></div>
+    <div class="card"><span class="emoji-big">🗣️</span><h4>Fake return narratives</h4><p>Scripted chat transcripts and emails pushing for immediate refunds.</p></div>
+    <div class="card"><span class="emoji-big">🔗</span><h4>Organized fraud rings</h4><p>Networks of accounts sharing addresses, devices, payment methods across returns.</p></div>
+    <div class="card"><span class="emoji-big">📸</span><h4>Photo manipulation</h4><p>Fake damage photos or reused photos across multiple return requests.</p></div>
+    <div class="card"><span class="emoji-big">📋</span><h4>Label reuse / shipping fraud</h4><p>Same shipping label used across multiple returns from different accounts.</p></div>
+    <div class="card"><span class="emoji-big">🧾</span><h4>Receipt / invoice fraud</h4><p>Returning items purchased elsewhere or at different prices.</p></div>
+  </div>
+</section>
+
+<!-- SLIDE 4: Solution -->
+<section class="slide">
+  <span class="slide-number">04/13</span>
+  <span class="badge">The solution</span>
+  <h2>ReturnShieldAI — <span class="accent">purpose-built</span> for return fraud</h2>
+  <p class="lead">Deploy via API in 5 minutes. Every return scored, explained, and actioned before the refund is released.</p>
+  <div class="grid grid-2" style="margin-top: 2.5rem;">
+    <div class="card">
+      <span class="emoji-big">⚡</span>
+      <h4>Real-time scoring</h4>
+      <p>Sub-500ms per request. Rules, ML, NLP, anomaly, and graph engines all fire on every return.</p>
+    </div>
+    <div class="card">
+      <span class="emoji-big">🔬</span>
+      <h4>Multi-engine fusion</h4>
+      <p>Weighted ensemble (30/30/25/15) with meta learner. No single point of failure — engines cross-validate.</p>
+    </div>
+    <div class="card">
+      <span class="emoji-big">🕸️</span>
+      <h4>Fraud ring detection</h4>
+      <p>NetworkX + PageRank + Louvain community detection uncovers organized fraud networks invisible to traditional models.</p>
+    </div>
+    <div class="card">
+      <span class="emoji-big">💬</span>
+      <h4>NLP on return narratives</h4>
+      <p>sentence-transformers + TF-IDF analyze return reasons, chat transcripts, and emails for fraud language patterns.</p>
+    </div>
+    <div class="card">
+      <span class="emoji-big">🧠</span>
+      <h4>Full explainability</h4>
+      <p>SHAP values + LLM investigator explains every decision in plain language — regulators and analysts can trust the why.</p>
+    </div>
+    <div class="card">
+      <span class="emoji-big">🔄</span>
+      <h4>Continuous learning</h4>
+      <p>Analyst feedback retrains models. Evidently AI monitors drift. Model registry manages version rollback.</p>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 5: Architecture -->
+<section class="slide">
+  <span class="slide-number">05/13</span>
+  <span class="badge">Architecture</span>
+  <h2>20 engines, <span class="accent">one unified</span> decision pipeline</h2>
+  <div style="margin-top: 2.5rem;">
+    <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 1.5rem; padding: 2.5rem;">
+      <div style="text-align: center; margin-bottom: 2rem;">
+        <div class="badge" style="margin-bottom: 0.5rem;">Input</div>
+        <div class="flow">
+          <span class="flow-step">Return request (REST API)</span>
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem;">
+        <div class="card" style="text-align: center; padding: 1.5rem;">
+          <div style="font-size: 1.5rem; font-weight: 700; color: #6dd5ff;">30%</div>
+          <div style="font-size: 0.8rem; color: #8fa8cc; margin-top: 0.25rem;">Rule Engine</div>
+        </div>
+        <div class="card" style="text-align: center; padding: 1.5rem;">
+          <div style="font-size: 1.5rem; font-weight: 700; color: #6dd5ff;">30%</div>
+          <div style="font-size: 0.8rem; color: #8fa8cc; margin-top: 0.25rem;">Structured ML</div>
+        </div>
+        <div class="card" style="text-align: center; padding: 1.5rem;">
+          <div style="font-size: 1.5rem; font-weight: 700; color: #6dd5ff;">25%</div>
+          <div style="font-size: 0.8rem; color: #8fa8cc; margin-top: 0.25rem;">NLP Detection</div>
+        </div>
+        <div class="card" style="text-align: center; padding: 1.5rem;">
+          <div style="font-size: 1.5rem; font-weight: 700; color: #6dd5ff;">15%</div>
+          <div style="font-size: 0.8rem; color: #8fa8cc; margin-top: 0.25rem;">Anomaly / Graph</div>
+        </div>
+      </div>
+      <div style="text-align: center; margin-bottom: 0.5rem;">
+        <div class="badge" style="margin-bottom: 0.5rem;">Fusion</div>
+        <div class="flow">
+          <span class="flow-step">Fusion Engine</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step">SHAP Explainability</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step">LLM Investigation</span>
+        </div>
+      </div>
+      <div style="text-align: center; margin-top: 1.5rem;">
+        <div class="badge" style="margin-bottom: 0.5rem;">Decision</div>
+        <div class="flow">
+          <span class="flow-step" style="background: rgba(0,200,100,0.08); border-color: rgba(0,200,100,0.2); color: #4ade80;">0-39: AUTO_APPROVE</span>
+          <span class="flow-step" style="background: rgba(255,200,0,0.08); border-color: rgba(255,200,0,0.2); color: #facc15;">40-69: MANUAL_REVIEW</span>
+          <span class="flow-step" style="background: rgba(255,50,50,0.08); border-color: rgba(255,50,50,0.2); color: #f87171;">70-100: HOLD_REFUND</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 6: Market -->
+<section class="slide">
+  <span class="slide-number">06/13</span>
+  <span class="badge">Market opportunity</span>
+  <h2>$48B TAM — and <span class="accent">growing 18%</span> CAGR</h2>
+  <div class="grid grid-3" style="margin-top: 2.5rem; gap: 1.5rem;">
+    <div class="card" style="text-align: center;">
+      <div class="stat" style="font-size: 2.5rem;">$48.2B</div>
+      <div class="stat-label">Global e-commerce fraud prevention TAM by 2030</div>
+    </div>
+    <div class="card" style="text-align: center;">
+      <div class="stat" style="font-size: 2.5rem;">$8.7B</div>
+      <div class="stat-label">Return fraud + post-purchase SAM by 2028</div>
+    </div>
+    <div class="card" style="text-align: center;">
+      <div class="stat" style="font-size: 2.5rem;">$1.2B</div>
+      <div class="stat-label">Mid-market SOM (10K-500K orders/mo merchants)</div>
+    </div>
+  </div>
+  <div style="margin-top: 2rem;">
+    <h3 style="margin-bottom: 1rem;">Target verticals</h3>
+    <div class="grid grid-4" style="gap: 1rem;">
+      <div class="card" style="text-align: center; padding: 1.25rem;">
+        <div style="font-size: 2rem;">👕</div>
+        <div style="font-size: 0.85rem; font-weight: 600; color: #c8d8f0;">Fashion</div>
+        <div style="font-size: 0.75rem; color: #8fa8cc;">25-40% return rate</div>
+      </div>
+      <div class="card" style="text-align: center; padding: 1.25rem;">
+        <div style="font-size: 2rem;">💻</div>
+        <div style="font-size: 0.85rem; font-weight: 600; color: #c8d8f0;">Electronics</div>
+        <div style="font-size: 0.75rem; color: #8fa8cc;">15-25% return rate</div>
+      </div>
+      <div class="card" style="text-align: center; padding: 1.25rem;">
+        <div style="font-size: 2rem;">💎</div>
+        <div style="font-size: 0.85rem; font-weight: 600; color: #c8d8f0;">Luxury</div>
+        <div style="font-size: 0.75rem; color: #8fa8cc;">Organized fraud rings</div>
+      </div>
+      <div class="card" style="text-align: center; padding: 1.25rem;">
+        <div style="font-size: 2rem;">🏪</div>
+        <div style="font-size: 0.85rem; font-weight: 600; color: #c8d8f0;">Marketplaces</div>
+        <div style="font-size: 0.75rem; color: #8fa8cc;">Multi-merchant fraud</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 7: Competition -->
+<section class="slide">
+  <span class="slide-number">07/13</span>
+  <span class="badge">Competition</span>
+  <h2>Legacy vendors built for checkout — <span class="accent">we built for returns</span></h2>
+  <div style="margin-top: 2rem; overflow-x: auto;">
+    <table>
+      <tr>
+        <th style="width: 22%;">Capability</th>
+        <th style="color:#00b4ff; width: 18%;">ReturnShieldAI</th>
+        <th style="width: 15%;">Signifyd</th>
+        <th style="width: 15%;">Forter</th>
+        <th style="width: 15%;">Sift</th>
+        <th style="width: 15%;">NoFraud</th>
+      </tr>
+      <tr><td>Return fraud focus</td><td style="color:#4ade80; font-weight: 600;">★ Primary</td><td style="color:#f87171;">★ Afterthought</td><td style="color:#f87171;">★ Afterthought</td><td style="color:#facc15;">★★ Partial</td><td style="color:#facc15;">★★ Partial</td></tr>
+      <tr><td>Post-purchase detection</td><td style="color:#4ade80; font-weight: 600;">✓ Yes</td><td style="color:#f87171;">✗ No</td><td style="color:#f87171;">✗ No</td><td style="color:#facc15;">◐ Limited</td><td style="color:#facc15;">◐ Limited</td></tr>
+      <tr><td>Fraud ring detection</td><td style="color:#4ade80; font-weight: 600;">NetworkX + PageRank</td><td style="color:#facc15;">◐ Basic</td><td style="color:#facc15;">◐ Basic</td><td style="color:#facc15;">◐ Basic</td><td style="color:#f87171;">✗ None</td></tr>
+      <tr><td>NLP on return text</td><td style="color:#4ade80; font-weight: 600;">sentence-transformers</td><td style="color:#f87171;">✗</td><td style="color:#f87171;">✗</td><td style="color:#facc15;">◐</td><td style="color:#f87171;">✗</td></tr>
+      <tr><td>Explainability</td><td style="color:#4ade80; font-weight: 600;">Full SHAP + LLM</td><td style="color:#facc15;">◐◐</td><td style="color:#facc15;">◐◐</td><td style="color:#facc15;">◐◐</td><td style="color:#facc15;">◐</td></tr>
+      <tr><td>Self-hosted option</td><td style="color:#4ade80; font-weight: 600;">✓ Yes</td><td style="color:#f87171;">✗ Cloud-only</td><td style="color:#f87171;">✗ Cloud-only</td><td style="color:#f87171;">✗ Cloud-only</td><td style="color:#f87171;">✗ Cloud-only</td></tr>
+      <tr><td>Time to deploy</td><td style="color:#4ade80; font-weight: 600;">Minutes</td><td style="color:#facc15;">Weeks</td><td style="color:#facc15;">Weeks</td><td style="color:#facc15;">Days</td><td style="color:#facc15;">Days</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- SLIDE 8: Traction -->
+<section class="slide">
+  <span class="slide-number">08/13</span>
+  <span class="badge">Traction</span>
+  <h2><span class="accent">Production-ready</span> prototype — built in weeks</h2>
+  <div class="grid grid-2" style="margin-top: 2rem;">
+    <div>
+      <ul style="list-style: none; display: flex; flex-direction: column; gap: 1rem;">
+        <li style="display: flex; gap: 0.75rem; align-items: flex-start;">
+          <span style="color: #4ade80; font-size: 1.25rem;">✓</span>
+          <div><strong style="color: #e8edf5;">20 modular engines</strong><br><span style="color: #8fa8cc; font-size: 0.9rem;">Built, tested, and integrated end-to-end</span></div>
+        </li>
+        <li style="display: flex; gap: 0.75rem; align-items: flex-start;">
+          <span style="color: #4ade80; font-size: 1.25rem;">✓</span>
+          <div><strong style="color: #e8edf5;">24 REST API endpoints</strong><br><span style="color: #8fa8cc; font-size: 0.9rem;">Full CRUD, scoring, dashboard, module management</span></div>
+        </li>
+        <li style="display: flex; gap: 0.75rem; align-items: flex-start;">
+          <span style="color: #4ade80; font-size: 1.25rem;">✓</span>
+          <div><strong style="color: #e8edf5;">Production frontend</strong><br><span style="color: #8fa8cc; font-size: 0.9rem;">React + TypeScript + Tailwind, built with Vite</span></div>
+        </li>
+        <li style="display: flex; gap: 0.75rem; align-items: flex-start;">
+          <span style="color: #4ade80; font-size: 1.25rem;">✓</span>
+          <div><strong style="color: #e8edf5;">3 Kaggle datasets ingested</strong><br><span style="color: #8fa8cc; font-size: 0.9rem;">2M+ rows across e-commerce domains</span></div>
+        </li>
+        <li style="display: flex; gap: 0.75rem; align-items: flex-start;">
+          <span style="color: #4ade80; font-size: 1.25rem;">✓</span>
+          <div><strong style="color: #e8edf5;">5 ML model families</strong><br><span style="color: #8fa8cc; font-size: 0.9rem;">Structured (RF/LGBM/XGB), NLP, anomaly, fusion, graph</span></div>
+        </li>
+        <li style="display: flex; gap: 0.75rem; align-items: flex-start;">
+          <span style="color: #4ade80; font-size: 1.25rem;">✓</span>
+          <div><strong style="color: #e8edf5;">Feedback loop</strong><br><span style="color: #8fa8cc; font-size: 0.9rem;">Analyst decisions retrain models continuously</span></div>
+        </li>
+      </ul>
+    </div>
+    <div class="card" style="display: flex; flex-direction: column; gap: 1.25rem;">
+      <div>
+        <div class="stat" style="font-size: 2rem;">~150ms</div>
+        <div class="stat-label">Per-return inference time</div>
+      </div>
+      <div>
+        <div class="stat" style="font-size: 2rem;">12s</div>
+        <div class="stat-label">Startup to full readiness</div>
+      </div>
+      <div>
+        <div class="stat" style="font-size: 2rem;">50+</div>
+        <div class="stat-label">E-commerce auto-mapping patterns</div>
+      </div>
+      <div>
+        <div class="stat" style="font-size: 2rem;">18</div>
+        <div class="stat-label">Seeded customers + full data graph</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 9: Business Model -->
+<section class="slide">
+  <span class="slide-number">09/13</span>
+  <span class="badge">Business model</span>
+  <h2>Usage-based pricing for <span class="accent">every scale</span></h2>
+  <div class="grid grid-3" style="margin-top: 2.5rem; gap: 1.5rem;">
+    <div class="card" style="text-align: center; border-color: rgba(255,255,255,0.08);">
+      <div class="badge" style="background: rgba(0,145,255,0.08); color: #6dd5ff;">Starter</div>
+      <div style="font-size: 2.5rem; font-weight: 800; color: #f0f4ff; margin: 0.75rem 0;">$999</div>
+      <div style="color: #8fa8cc; font-size: 0.9rem; margin-bottom: 1rem;">per month</div>
+      <ul style="list-style: none; text-align: left; display: flex; flex-direction: column; gap: 0.5rem;">
+        <li style="display: flex; gap: 0.5rem; align-items: center;"><span style="color: #4ade80;">✓</span><span style="font-size: 0.85rem; color: #b0c4e8;">Up to 10K returns/mo</span></li>
+        <li style="display: flex; gap: 0.5rem; align-items: center;"><span style="color: #4ade80;">✓</span><span style="font-size: 0.85rem; color: #b0c4e8;">Core scoring</span></li>
+        <li style="display: flex; gap: 0.5rem; align-items: center;"><span style="color: #4ade80;">✓</span><span style="font-size: 0.85rem; color: #b0c4e8;">Dashboard access</span></li>
+        <li style="display: flex; gap: 0.5rem; align-items: center;"><span style="color: #4ade80;">✓</span><span style="font-size: 0.85rem; color: #b0c4e8;">Email alerts</span></li>
+      </ul>
+    </div>
+    <div class="card" style="text-align: center; border-color: rgba(0,145,255,0.3); background: rgba(0,145,255,0.04);">
+      <div class="badge" style="background: rgba(0,145,255,0.15); color: #6dd5ff;">Growth</div>
+      <div style="font-size: 2.5rem; font-weight: 800; color: #f0f4ff; margin: 0.75rem 0;">$4,999</div>
+      <div style="color: #8fa8cc; font-size: 0.9rem; margin-bottom: 1rem;">per month</div>
+      <ul style="list-style: none; text-align: left; display: flex; flex-direction: column; gap: 0.5rem;">
+        <li style="display: flex; gap: 0.5rem; align-items: center;"><span style="color: #4ade80;">✓</span><span style="font-size: 0.85rem; color: #b0c4e8;">Up to 100K returns/mo</span></li>
+        <li style="display: flex; gap: 0.5rem; align-items: center;"><span style="color: #4ade80;">✓</span><span style="font-size: 0.85rem; color: #b0c4e8;">All 20 engines</span></li>
+        <li style="display: flex; gap: 0.5rem; align-items: center;"><span style="color: #4ade80;">✓</span><span style="font-size: 0.85rem; color: #b0c4e8;">Fraud ring detection</span></li>
+        <li style="display: flex; gap: 0.5rem; align-items: center;"><span style="color: #4ade80;">✓</span><span style="font-size: 0.85rem; color: #b0c4e8;">Slack / Webhook alerts</span></li>
+      </ul>
+    </div>
+    <div class="card" style="text-align: center;">
+      <div class="badge" style="background: rgba(255,200,0,0.08); color: #facc15;">Enterprise</div>
+      <div style="font-size: 2.5rem; font-weight: 800; color: #f0f4ff; margin: 0.75rem 0;">Custom</div>
+      <div style="color: #8fa8cc; font-size: 0.9rem; margin-bottom: 1rem;">per year</div>
+      <ul style="list-style: none; text-align: left; display: flex; flex-direction: column; gap: 0.5rem;">
+        <li style="display: flex; gap: 0.5rem; align-items: center;"><span style="color: #4ade80;">✓</span><span style="font-size: 0.85rem; color: #b0c4e8;">Unlimited volume</span></li>
+        <li style="display: flex; gap: 0.5rem; align-items: center;"><span style="color: #4ade80;">✓</span><span style="font-size: 0.85rem; color: #b0c4e8;">On-prem deployment</span></li>
+        <li style="display: flex; gap: 0.5rem; align-items: center;"><span style="color: #4ade80;">✓</span><span style="font-size: 0.85rem; color: #b0c4e8;">LLM investigation + custom models</span></li>
+        <li style="display: flex; gap: 0.5rem; align-items: center;"><span style="color: #4ade80;">✓</span><span style="font-size: 0.85rem; color: #b0c4e8;">Dedicated ML engineer</span></li>
+      </ul>
+    </div>
+  </div>
+  <div style="margin-top: 2rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 1.25rem; padding: 1.5rem;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2rem;">
+      <div><div style="font-size: 0.8rem; color: #8fa8cc;">Per-return pricing</div><div style="font-size: 1.5rem; font-weight: 700; color: #f0f4ff;">$0.05–0.10</div></div>
+      <div><div style="font-size: 0.8rem; color: #8fa8cc;">Implementation fee</div><div style="font-size: 1.5rem; font-weight: 700; color: #f0f4ff;">$5K–25K</div></div>
+      <div><div style="font-size: 0.8rem; color: #8fa8cc;">Revenue model</div><div style="font-size: 1.5rem; font-weight: 700; color: #f0f4ff;">Usage + % of fraud prevented</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 10: Moat -->
+<section class="slide">
+  <span class="slide-number">10/13</span>
+  <span class="badge">Competitive moat</span>
+  <h2>Why we win — <span class="accent">5 structural</span> advantages</h2>
+  <div class="grid grid-2" style="margin-top: 2.5rem; gap: 1.5rem;">
+    <div class="card">
+      <div style="display: flex; gap: 1rem; align-items: flex-start;">
+        <span style="font-size: 2rem;">🎯</span>
+        <div>
+          <h4 style="margin-bottom: 0.25rem;">Purpose-built for returns</h4>
+          <p>Not a checkout fraud tool retrofitted. Every engine, every feature, every model designed for the return fraud problem.</p>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div style="display: flex; gap: 1rem; align-items: flex-start;">
+        <span style="font-size: 2rem;">🛡️</span>
+        <div>
+          <h4 style="margin-bottom: 0.25rem;">Multi-engine, no single point of failure</h4>
+          <p>If one engine misses a signal, another catches it. Engines cross-validate — fraud rings can't game all 20.</p>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div style="display: flex; gap: 1rem; align-items: flex-start;">
+        <span style="font-size: 2rem;">🕸️</span>
+        <div>
+          <h4 style="margin-bottom: 0.25rem;">Graph-based fraud ring detection</h4>
+          <p>Unique in the market. NetworkX + PageRank + Louvain discovers organized fraud networks no other tool can see.</p>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div style="display: flex; gap: 1rem; align-items: flex-start;">
+        <span style="font-size: 2rem;">🏠</span>
+        <div>
+          <h4 style="margin-bottom: 0.25rem;">Self-hosted option</h4>
+          <p>Data-sensitive enterprises won't share transaction data with cloud-only vendors. We deploy on their infrastructure.</p>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="grid-column: 1 / -1;">
+      <div style="display: flex; gap: 1rem; align-items: flex-start;">
+        <span style="font-size: 2rem;">🔓</span>
+        <div>
+          <h4 style="margin-bottom: 0.25rem;">Transparent explainability</h4>
+          <p>Regulators demand to know why. SHAP + LLM investigation gives a full decision trace and natural-language explanation for every score.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 11: Team -->
+<section class="slide">
+  <span class="slide-number">11/13</span>
+  <span class="badge">Team</span>
+  <h2>Built by engineers who understand <span class="accent">fraud at scale</span></h2>
+  <div style="margin-top: 2.5rem;">
+    <div class="grid grid-3" style="gap: 2rem;">
+      <div class="card" style="text-align: center;">
+        <div style="width: 5rem; height: 5rem; border-radius: 100px; background: linear-gradient(135deg, #0070f3, #00b4ff); margin: 0 auto 1rem; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 700; color: white;">SM</div>
+        <h4 style="margin-bottom: 0.25rem;">Senthilnath G.</h4>
+        <div style="font-size: 0.8rem; color: #6dd5ff; font-weight: 500; margin-bottom: 0.75rem;">CEO / ML Lead</div>
+        <p style="font-size: 0.85rem;">ML engineering background. Built production fraud systems end-to-end.</p>
+      </div>
+      <div class="card" style="text-align: center;">
+        <div style="width: 5rem; height: 5rem; border-radius: 100px; background: linear-gradient(135deg, #0070f3, #00b4ff); margin: 0 auto 1rem; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 700; color: white;">#1</div>
+        <h4 style="margin-bottom: 0.25rem;">You?</h4>
+        <div style="font-size: 0.8rem; color: #6dd5ff; font-weight: 500; margin-bottom: 0.75rem;">First Engineering Hire</div>
+        <p style="font-size: 0.85rem;">20 engines built in weeks — looking for someone who ships fast.</p>
+      </div>
+      <div class="card" style="text-align: center;">
+        <div style="width: 5rem; height: 5rem; border-radius: 100px; background: linear-gradient(135deg, #0070f3, #00b4ff); margin: 0 auto 1rem; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 700; color: white;">+</div>
+        <h4 style="margin-bottom: 0.25rem;">Engineering Partners</h4>
+        <div style="font-size: 0.8rem; color: #6dd5ff; font-weight: 500; margin-bottom: 0.75rem;">Contract / Early FTE</div>
+        <p style="font-size: 0.85rem;">Full-stack React + Python expertise. End-to-end product ownership culture.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 12: Financial Ask -->
+<section class="slide">
+  <span class="slide-number">12/13</span>
+  <span class="badge">The ask</span>
+  <h2>Seed round: <span class="accent">$750K</span></h2>
+  <div style="margin-top: 2.5rem;">
+    <div class="grid grid-2" style="gap: 2rem;">
+      <div>
+        <table class="use-table">
+          <tr><td style="width: 70%;">Engineering (3 FTE, 12 months)</td><td style="width: 30%;">$412K</td><td style="color: #8fa8cc;">55%</td></tr>
+          <tr><td>Customer pilots (3-5 merchants)</td><td>$112K</td><td style="color: #8fa8cc;">15%</td></tr>
+          <tr><td>Cloud infrastructure</td><td>$90K</td><td style="color: #8fa8cc;">12%</td></tr>
+          <tr><td>Compliance & legal (SOC 2)</td><td>$75K</td><td style="color: #8fa8cc;">10%</td></tr>
+          <tr><td>Marketing & GTM</td><td>$60K</td><td style="color: #8fa8cc;">8%</td></tr>
+          <tr style="border-top: 1px solid rgba(255,255,255,0.1);">
+            <td style="font-weight: 700; color: #f0f4ff;">Total</td>
+            <td style="font-weight: 700; color: #6dd5ff;">$750K</td>
+            <td style="color: #8fa8cc;">100%</td>
+          </tr>
+        </table>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+        <div class="card">
+          <h4 style="margin-bottom: 0.5rem;">🚀 12-month milestones</h4>
+          <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.6rem;">
+            <li style="display: flex; gap: 0.5rem; align-items: center;"><span style="color: #4ade80;">✓</span><span style="font-size: 0.9rem; color: #b0c4e8;">5 paying enterprise customers</span></li>
+            <li style="display: flex; gap: 0.5rem; align-items: center;"><span style="color: #4ade80;">✓</span><span style="font-size: 0.9rem; color: #b0c4e8;">1M+ monthly returns scored</span></li>
+            <li style="display: flex; gap: 0.5rem; align-items: center;"><span style="color: #4ade80;">✓</span><span style="font-size: 0.9rem; color: #b0c4e8;">Shopify / Magento / BigCommerce plugins</span></li>
+            <li style="display: flex; gap: 0.5rem; align-items: center;"><span style="color: #4ade80;">✓</span><span style="font-size: 0.9rem; color: #b0c4e8;">SOC 2 Type I certification</span></li>
+            <li style="display: flex; gap: 0.5rem; align-items: center;"><span style="color: #4ade80;">✓</span><span style="font-size: 0.9rem; color: #b0c4e8;">$300K ARR run rate</span></li>
+          </ul>
+        </div>
+        <div>
+          <div class="badge" style="background: rgba(0,200,100,0.08); color: #4ade80; border-color: rgba(0,200,100,0.2);">Target investors</div>
+          <p style="font-size: 0.9rem; margin-top: 0.5rem;">Enterprise SaaS / fintech infrastructure VCs · E-commerce & logistics funds · AI/ML specialists · Strategic angels from Stripe, Shopify, Forter</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 13: Closing -->
+<section class="slide" style="text-align: center; justify-content: center;">
+  <span class="slide-number">13/13</span>
+  <div class="badge" style="margin: 0 auto 1.5rem;">Let's build the future of fraud prevention</div>
+  <h1 style="font-size: 4rem; max-width: 48rem; margin: 0 auto;">ReturnShieldAI</h1>
+  <p class="lead" style="margin: 0 auto; margin-top: 1.5rem; text-align: center;">The $50B return fraud problem isn't going away.<br>Help us build the first platform that solves it.</p>
+  <div style="margin-top: 3rem; display: flex; gap: 2rem; justify-content: center;">
+    <div style="text-align: center;">
+      <div style="font-size: 0.8rem; color: #8fa8cc; margin-bottom: 0.25rem;">Contact</div>
+      <div style="font-weight: 600; color: #f0f4ff;">senthilnath@returnshield.ai</div>
+    </div>
+    <div style="text-align: center;">
+      <div style="font-size: 0.8rem; color: #8fa8cc; margin-bottom: 0.25rem;">GitHub</div>
+      <div style="font-weight: 600; color: #6dd5ff;">github.com/senthilnathang/ReturnShieldAI</div>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>
