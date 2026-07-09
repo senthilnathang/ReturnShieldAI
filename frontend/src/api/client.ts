@@ -1,6 +1,6 @@
 import type { CaseDetail, CaseSummary, Metrics, PaginatedResponse, Rule, FeedbackRecord, ReturnRequestPayload, ScoreResponse } from '../types';
 
-const API_URL = import.meta.env.DEV ? "/api" : (import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000/api");
+const API_URL = import.meta.env.DEV ? "/api" : (import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8001/api");
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
