@@ -1,0 +1,20 @@
+allowed_return_rate: 0.1
+analyst_assignee: analyst.electronics
+fusion_weights:
+  anomaly_score: 0.15
+  customer_risk_score: 0.05
+  graph_risk_score: 0.05
+  nlp_score: 0.15
+  rule_score: 0.3
+  structured_ml_score: 0.3
+high_risk_categories:
+- electronics
+models:
+  nlp: default
+  structured_ml: default
+risk_thresholds:
+  high: 70
+  low: 40
+rules:
+  max_return_rate: 0.25
+  weight_mismatch_threshold: 0.3

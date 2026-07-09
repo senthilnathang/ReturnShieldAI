@@ -14,15 +14,22 @@ class FaissVectorStore(VectorStore):
     def __init__(self, dim: int = 384, similarity: str = "cosine"):
         self.dim = dim
         self.similarity = similarity
-        if similarity == "cosine":
-            self.index = faiss.IndexFlatIP(dim)
-        else:
-            self.index = faiss.IndexFlatL2(dim)
+        self._reset_index()
         self.metadata: list[dict[str, Any]] = []
+
+    def _reset_index(self) -> None:
+        if self.similarity == "cosine":
+            self.index = faiss.IndexFlatIP(self.dim)
+        else:
+            self.index = faiss.IndexFlatL2(self.dim)
 
     def add(self, embeddings: list[list[float]], metadata: list[dict[str, Any]]) -> None:
         if not embeddings:
             return
+        if len(embeddings[0]) != self.dim:
+            self.dim = len(embeddings[0])
+            self._reset_index()
+            self.metadata = []
         vectors = np.array(embeddings, dtype=np.float32)
         if self.similarity == "cosine":
             faiss.normalize_L2(vectors)
@@ -57,11 +64,19 @@ class FaissVectorStore(VectorStore):
     def load(self, path: str) -> None:
         if not os.path.exists(path):
             return
-        self.index = faiss.read_index(path)
+        try:
+            loaded = faiss.read_index(path)
+            if loaded.d == self.dim:
+                self.index = loaded
+        except Exception:
+            pass
         meta_path = path.replace(".index", "_meta.joblib")
         if os.path.exists(meta_path):
             import joblib
-            self.metadata = joblib.load(meta_path)
+            try:
+                self.metadata = joblib.load(meta_path)
+            except Exception:
+                self.metadata = []
 
     def clear(self) -> None:
         self.index.reset()

@@ -50,7 +50,7 @@ export function Pagination({ currentPage, totalItems, pageSize, onPageChange, on
             onClick={() => onPageChange(page)}
             className={`flex size-8 items-center justify-center rounded-lg text-sm font-medium ${
               page === currentPage
-                ? 'bg-blue-600 text-white'
+                ? 'bg-slate-950 text-white'
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
           >

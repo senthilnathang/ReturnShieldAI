@@ -171,7 +171,7 @@ function ReturnIntakePanel({ onCreated }: { onCreated: (result: ScoreResponse) =
             className="min-h-[320px] w-full rounded-2xl border border-slate-200 bg-white p-4 font-mono text-xs text-slate-700 outline-none"
           />
           <div className="mt-3 flex flex-wrap items-center gap-3">
-            <button onClick={submit} disabled={loading} className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-medium text-slate-950 disabled:opacity-60">
+            <button onClick={submit} disabled={loading} className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-medium text-white disabled:opacity-60">
               {loading ? 'Scoring...' : 'Submit return'}
             </button>
             {result ? <span className={`rounded-full px-3 py-1 text-xs ${badgeTone(result.risk_level)}`}>{result.decision} {result.risk_score.toFixed(1)}</span> : null}
@@ -448,7 +448,7 @@ function CasesPage({ cases = [], filters, setFilters }: { cases?: CaseSummary[];
               </div>
               <button
                 onClick={() => navigate(`/investigations/${item.id}`)}
-                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600/15 px-3 py-3 text-sm text-blue-700 ring-1 ring-blue-200"
+                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950/10 px-3 py-3 text-sm text-slate-800 ring-1 ring-slate-300"
               >
                 Investigate
                 <ArrowRight className="h-3.5 w-3.5" />
@@ -486,7 +486,7 @@ function CasesPage({ cases = [], filters, setFilters }: { cases?: CaseSummary[];
                   <td className="px-4 py-3 text-slate-700">{item.decision}</td>
                   <td className="px-4 py-3 text-slate-600">{item.status}</td>
                   <td className="px-4 py-3">
-                    <button onClick={() => navigate(`/investigations/${item.id}`)} className="inline-flex items-center gap-2 rounded-2xl bg-blue-600/15 px-3 py-2 text-xs text-blue-700 ring-1 ring-blue-200">
+                    <button onClick={() => navigate(`/investigations/${item.id}`)} className="inline-flex items-center gap-2 rounded-2xl bg-slate-950/10 px-3 py-2 text-xs text-slate-800 ring-1 ring-slate-300">
                       Investigate
                       <ArrowRight className="h-3.5 w-3.5" />
                     </button>
@@ -940,7 +940,7 @@ function EnhancementsPage({ latest, cases = [] }: { latest?: ScoreResponse; case
             <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">Feedback from approve / reject / fraud labels is stored for future retraining.</div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            <Link to="/decision-engine" className="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-medium text-slate-950">Open decision engine</Link>
+            <Link to="/decision-engine" className="rounded-2xl bg-slate-950 px-4 py-2 text-sm font-medium text-white">Open decision engine</Link>
             <Link to="/cases" className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-800">Open case queue</Link>
           </div>
         </Panel>
@@ -1409,7 +1409,7 @@ function RulesPage({ rules = [], setRules }: { rules?: Rule[]; setRules: Dispatc
               <input value={newRule.description} onChange={(event) => setNewRule((value) => ({ ...value, description: event.target.value }))} placeholder="Description" className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none md:col-span-2" />
               <div className="flex flex-wrap items-center gap-3 md:col-span-2">
                 <input type="number" value={newRule.score} onChange={(event) => setNewRule((value) => ({ ...value, score: Number(event.target.value) }))} className="w-28 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none" />
-                <button onClick={createRule} disabled={creating} className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-medium text-slate-950 disabled:opacity-60">{creating ? "Creating..." : "Create rule"}</button>
+                <button onClick={createRule} disabled={creating} className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-medium text-white disabled:opacity-60">{creating ? "Creating..." : "Create rule"}</button>
                 {message ? <span className="text-sm text-slate-600">{message}</span> : null}
               </div>
             </div>
@@ -2310,7 +2310,7 @@ function ModuleDashboardPage() {
         subtitle="Status of all AI/ML intelligence modules."
         action={
           <div className="flex gap-2">
-            <button onClick={handleRetrain} className="rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700">
+            <button onClick={handleRetrain} className="rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
               Retrain models
             </button>
             <button onClick={handleSeed} className="rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
@@ -2421,7 +2421,7 @@ function AlertsPage() {
         </Panel>
         <Panel title="Live evaluation" subtitle="Test a payload against alert rules.">
           <textarea value={evalPayload} onChange={e => setEvalPayload(e.target.value)} className="min-h-[180px] w-full rounded-lg border border-grey-border bg-grey-background p-3 font-mono text-xs outline-none" />
-          <button onClick={runEval} className="mt-3 rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white">Evaluate</button>
+          <button onClick={runEval} className="mt-3 rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white">Evaluate</button>
           {evalResult && <div className="mt-3 rounded-lg border border-grey-border bg-grey-background-light p-3 text-sm text-grey-primary">{evalResult}</div>}
         </Panel>
       </div>
@@ -2617,7 +2617,7 @@ function NlpAnalyzerPage() {
       <div className="grid gap-4 xl:grid-cols-2">
         <Panel title="Input text" subtitle="Enter a customer's return reason or chat transcript.">
           <textarea value={text} onChange={e => setText(e.target.value)} className="min-h-[200px] w-full rounded-lg border border-grey-border bg-grey-background p-3 text-sm outline-none" />
-          <button onClick={analyze} disabled={loading} className="mt-3 rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60">{loading ? 'Analyzing...' : 'Analyze'}</button>
+          <button onClick={analyze} disabled={loading} className="mt-3 rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60">{loading ? 'Analyzing...' : 'Analyze'}</button>
         </Panel>
         <Panel title="Analysis result" subtitle="Fraud signals, sentiment, and flagged phrases.">
           {result ? (
@@ -2677,7 +2677,7 @@ function EmbeddingsPage() {
       <div className="grid gap-4 xl:grid-cols-2">
         <Panel title="Semantic search" subtitle="Find similar cases by natural language query.">
           <input value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && search()} placeholder="Search for similar cases..." className="w-full rounded-lg border border-grey-border bg-grey-background px-4 py-3 text-sm outline-none" />
-          <button onClick={search} disabled={loading} className="mt-3 rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60">{loading ? 'Searching...' : 'Search'}</button>
+          <button onClick={search} disabled={loading} className="mt-3 rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60">{loading ? 'Searching...' : 'Search'}</button>
         </Panel>
         <Panel title="Results" subtitle={`${results.length} similar cases`}>
           <div className="space-y-2">

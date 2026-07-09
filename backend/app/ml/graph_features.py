@@ -104,7 +104,7 @@ def _neighbors(graph: Any, node: str) -> set[str]:
 def _shortest_path_length(graph: Any, start: str, goals: set[str]) -> int | None:
     if not goals:
         return None
-    if nx is not None and hasattr(graph, "shortest_path_length"):
+    if nx is not None and hasattr(graph, "has_node"):
         best: int | None = None
         for goal in goals:
             try:
@@ -119,7 +119,8 @@ def _shortest_path_length(graph: Any, start: str, goals: set[str]) -> int | None
         node, depth = queue.popleft()
         if node in goals:
             return depth
-        for neighbor in graph.get(node, set()):
+        neighbors = graph.neighbors(node) if hasattr(graph, 'neighbors') else graph.get(node, set())
+        for neighbor in neighbors:
             if neighbor not in visited:
                 visited.add(neighbor)
                 queue.append((neighbor, depth + 1))
@@ -246,7 +247,7 @@ def extract_graph_features(graph_bundle: FraudGraph, customer_id: UUID, return_i
         while queue:
             node = queue.popleft()
             component_nodes.add(node)
-            for neighbor in graph.get(node, set()):
+            for neighbor in graph.neighbors(node):
                 if neighbor not in visited:
                     visited.add(neighbor)
                     queue.append(neighbor)
