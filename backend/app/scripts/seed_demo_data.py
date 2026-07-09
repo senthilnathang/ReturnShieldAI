@@ -16,25 +16,39 @@ from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from ..core.database import async_session_factory
+from sqlalchemy import select
+
+from ..core.database import async_session_factory, sync_engine
 from ..core.logging import setup_logging
-from backend.app.prod_models.merchant import Merchant
+from ..db.base import Base
+from backend.app import prod_models  # noqa: F401
 from backend.app.prod_models.customer import Customer
 from backend.app.prod_models.customer_identity import CustomerIdentity
+from backend.app.prod_models.merchant import Merchant
 from backend.app.prod_models.order import Order
-from backend.app.prod_models.shipment import Shipment
-from backend.app.prod_models.return_request import ReturnRequest
-from backend.app.prod_models.return_item import ReturnItem
 from backend.app.prod_models.payment import Payment
 from backend.app.prod_models.refund import Refund
-from backend.app.prod_models.support_interaction import SupportInteraction
+from backend.app.prod_models.return_item import ReturnItem
+from backend.app.prod_models.return_request import ReturnRequest
 from backend.app.prod_models.rule import Rule
+from backend.app.prod_models.shipment import Shipment
+from backend.app.prod_models.support_interaction import SupportInteraction
 
 logger = logging.getLogger("returnshield.scripts.seed_demo")
 
 
+def ensure_schema() -> None:
+    Base.metadata.create_all(sync_engine)
+
+
 async def run():
+    ensure_schema()
     async with async_session_factory() as session:
+        existing_order = await session.execute(select(Order).limit(1))
+        if existing_order.scalar_one_or_none() is not None:
+            logger.info("Production demo data already present; skipping seed")
+            return
+
         # Merchant
         merchant = Merchant(name="Demo Merchant", industry="e-commerce")
         session.add(merchant)
@@ -120,32 +134,38 @@ async def run():
                 session.add(return_req)
                 await session.flush()
 
-                session.add(ReturnItem(
-                    return_id=return_req.id,
-                    order_id=order.id,
-                    sku=order.sku,
-                    product_name=order.product_name,
-                    category=order.category,
-                    declared_condition=return_req.condition_reported,
-                ))
+                session.add(
+                    ReturnItem(
+                        return_id=return_req.id,
+                        order_id=order.id,
+                        sku=order.sku,
+                        product_name=order.product_name,
+                        category=order.category,
+                        declared_condition=return_req.condition_reported,
+                    )
+                )
 
-                session.add(Payment(
-                    merchant_id=merchant.id,
-                    customer_id=customer.id,
-                    order_id=order.id,
-                    payment_method="card",
-                    payment_token_hash=f"tok_{order.id}",
-                    amount=order.product_value,
-                    chargeback_flag=(i == 1 and j == 1),
-                ))
+                session.add(
+                    Payment(
+                        merchant_id=merchant.id,
+                        customer_id=customer.id,
+                        order_id=order.id,
+                        payment_method="card",
+                        payment_token_hash=f"tok_{order.id}",
+                        amount=order.product_value,
+                        chargeback_flag=(i == 1 and j == 1),
+                    )
+                )
 
-                session.add(SupportInteraction(
-                    merchant_id=merchant.id,
-                    customer_id=customer.id,
-                    return_id=return_req.id,
-                    channel="chat",
-                    message_text="I want a refund immediately!" if i == 1 else "I would like to return this item.",
-                ))
+                session.add(
+                    SupportInteraction(
+                        merchant_id=merchant.id,
+                        customer_id=customer.id,
+                        return_id=return_req.id,
+                        channel="chat",
+                        message_text="I want a refund immediately!" if i == 1 else "I would like to return this item.",
+                    )
+                )
 
         await session.commit()
         logger.info("Demo data seeded successfully")

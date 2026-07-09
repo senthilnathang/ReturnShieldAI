@@ -18,19 +18,31 @@ class Settings(BaseSettings):
     postgres_db: str = "returnshield"
     postgres_host: str = "localhost"
     postgres_port: int = 5432
+    @staticmethod
+    def _validate_postgres_url(url: str) -> str:
+        if url.startswith("sqlite"):
+            raise ValueError("SQLite is not supported; configure PostgreSQL via DATABASE_URL.")
+        return url
+
+    @staticmethod
+    def _sync_url_from_postgres(url: str) -> str:
+        return Settings._validate_postgres_url(url).replace("+asyncpg", "").replace("+psycopg2", "")
 
     @property
     def database_url(self) -> str:
-        return os.getenv(
+        url = os.getenv(
             "DATABASE_URL",
             f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}",
         )
+        return self._validate_postgres_url(url)
 
     @property
     def database_url_sync(self) -> str:
-        return os.getenv(
-            "DATABASE_URL_SYNC",
-            f"postgresql://{self.postgres_user}:{self.postgres_password}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}",
+        url = os.getenv("DATABASE_URL_SYNC")
+        if url:
+            return self._sync_url_from_postgres(url)
+        return self._sync_url_from_postgres(
+            f"postgresql://{self.postgres_user}:{self.postgres_password}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
 
     # Redis
@@ -51,20 +63,7 @@ class Settings(BaseSettings):
 
     @property
     def cors_origin_regex(self) -> str | None:
-        return None
-
-    # Import
-    import_chunk_size: int = 10_000
-    max_import_workers: int = 4
-
-    # Scoring
-    scoring_timeout_seconds: int = 30
-    default_risk_threshold_low: int = 40
-    default_risk_threshold_high: int = 70
-
-    # Logging
-    log_level: str = "INFO"
-    log_format: str = "json" if os.getenv("APP_ENV") == "production" else "console"
+        return r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"
 
     # Paths
     data_dir: Path = Path(__file__).parent.parent.parent.parent / "data"

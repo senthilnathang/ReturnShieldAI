@@ -3,7 +3,7 @@
 ReturnShield AI is a shipment return fraud decisioning platform for e-commerce and retail teams. It scores each return request, explains why it was flagged, trains supervised fraud models from PostgreSQL data, and stores analyst feedback for follow-up review and retraining.
 
 The project has two parallel codebases:
-- **Hackathon MVP** - lightweight system using SQLModel + SQLite, runs locally via `run.sh`
+- **Local dev** - PostgreSQL-backed FastAPI stack runs locally via `run.sh`
 - **Production Foundation** - PostgreSQL 15 + Redis 7 + FastAPI + SQLAlchemy 2.0 async, runs via Docker Compose
 
 ## Product Flow
@@ -26,7 +26,7 @@ Return request -> normalization -> rules -> supervised ML -> NLP -> anomaly dete
 | Layer | Hackathon MVP | Production Foundation |
 |-------|--------------|----------------------|
 | **Backend** | FastAPI + SQLModel | FastAPI + SQLAlchemy 2.0 async |
-| **Database** | SQLite (file) | PostgreSQL 15+ (async via asyncpg) |
+| **Database** | PostgreSQL 15+ | PostgreSQL 15+ (async via asyncpg) |
 | **Cache/Queue** | - | Redis 7+ (streams, pub/sub, cache) |
 | **ML** | scikit-learn (5 families) | Logistic Regression, Random Forest, XGBoost, Neural Net, Pandas |
 | **Migrations** | - | Alembic |

@@ -1,4 +1,5 @@
 from __future__ import annotations
+import asyncio
 import time
 
 import json
@@ -8,15 +9,15 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import func
+from sqlalchemy import cast, func, or_, String
 from sqlmodel import Session, select
 
 from backend.app.core.config import settings
 from backend.app.db.session import get_session, init_db
 from backend.app.ml.explainability import build_explainability_panel
-from backend.app.ml.sample_data_generator import seed_database
 from backend.app.ml.train import ModelBundle, train_models
 from backend.app.models import AnalystFeedback, Customer, FraudScore, ModelTrainingRun, Order, ReturnCase, ReturnRecord, Rule
+from backend.app.scripts.seed_demo_data import run as seed_production_demo
 from backend.app.rules.engine import RuleEngine
 from backend.app.modules.routes import router as modules_router
 from backend.app.api_v1 import router as v1_router
@@ -104,34 +105,50 @@ def create_return(payload: ScoreRequest, session: Session = Depends(get_session)
 
 @router.get("/cases")
 def list_cases(session: Session = Depends(get_session), q: str | None = None, decision: str | None = None, risk_level: str | None = None, skip: int = 0, limit: int = 25):
-    stmt = (
-        select(ReturnCase, ReturnRecord, Customer, Order)
-        .join(ReturnRecord, ReturnCase.return_id == ReturnRecord.id)
-        .join(Customer, ReturnRecord.customer_id == Customer.id)
-        .join(Order, ReturnRecord.order_id == Order.id)
-        .order_by(ReturnCase.created_at.desc())
+    base_from = (
+        ReturnCase
+        .__table__
+        .join(ReturnRecord.__table__, ReturnCase.return_id == ReturnRecord.id)
+        .join(Customer.__table__, ReturnRecord.customer_id == Customer.id)
+        .join(Order.__table__, ReturnRecord.order_id == Order.id)
     )
-    rows = session.exec(stmt).all()
-    all_cases: list[CaseSummary] = []
+
+    filters = []
+    if q:
+        term = f"%{q.lower()}%"
+        filters.append(
+            or_(
+                cast(ReturnCase.id, String).ilike(term),
+                func.lower(Customer.name).ilike(term),
+                func.lower(Order.product_name).ilike(term),
+                func.lower(ReturnRecord.return_reason).ilike(term),
+                func.lower(Order.sku).ilike(term),
+            )
+        )
+    if decision:
+        filters.append(ReturnCase.decision == decision)
+    if risk_level:
+        filters.append(ReturnCase.risk_level == risk_level)
+
+    count_stmt = select(func.count()).select_from(base_from)
+    page_stmt = (
+        select(ReturnCase, ReturnRecord, Customer, Order)
+        .select_from(base_from)
+        .order_by(ReturnCase.risk_score.desc(), ReturnCase.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    if filters:
+        count_stmt = count_stmt.where(*filters)
+        page_stmt = page_stmt.where(*filters)
+
+    total = session.exec(count_stmt).one()
+    rows = session.exec(page_stmt).all()
+
+    items: list[CaseSummary] = []
     for case, return_record, customer, order in rows:
-        if q:
-            haystack = " ".join(
-                [
-                    str(case.id),
-                    customer.name,
-                    order.product_name,
-                    return_record.return_reason,
-                    order.sku,
-                ]
-            ).lower()
-            if q.lower() not in haystack:
-                continue
-        if decision and case.decision != decision:
-            continue
-        if risk_level and case.risk_level != risk_level:
-            continue
         customer_risk_score, _ = _customer_risk_details(session, customer)
-        all_cases.append(
+        items.append(
             CaseSummary(
                 id=case.id,
                 return_id=case.return_id,
@@ -146,9 +163,8 @@ def list_cases(session: Session = Depends(get_session), q: str | None = None, de
                 created_at=case.created_at,
             )
         )
-    total = len(all_cases)
-    page = all_cases[skip:skip + limit]
-    return {"items": page, "total": total}
+
+    return {"items": items, "total": int(total)}
 
 
 @router.get("/cases/{case_id}", response_model=CaseDetail)
@@ -418,7 +434,6 @@ def trigger_case_backfill(
     batch_size: int = 250,
     seed: int = 42,
 ):
-    from backend.app.scripts.generate_case_dataset import run_backfill
 
     result = run_backfill(
         session,
@@ -462,7 +477,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title=settings.app_name)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174", "http://127.0.0.1:5174", "http://localhost:3000", "http://127.0.0.1:3000"],
+        allow_origins=settings.cors_origins_list,
         allow_origin_regex=settings.cors_origin_regex,
         allow_credentials=True,
         allow_methods=["*"],
@@ -473,24 +488,8 @@ def create_app() -> FastAPI:
     app.include_router(v1_router)
 
     @app.on_event("startup")
-    def startup():
-        from backend.app.db.session import Session, engine
-
-        last_error = None
-        for _ in range(15):
-            try:
-                init_db()
-                with Session(engine) as session:
-                    seed_database(session)
-                    global MODEL_BUNDLE
-                    MODEL_BUNDLE = train_models(session)
-                    from backend.app.modules.seed_data import seed_all_module_data
-                    seed_result = seed_all_module_data(session)
-                    print(f"[startup] Module seed complete: {seed_result.get('embeddings', 0)} embeddings, {seed_result.get('investigations', 0)} investigations")
-                return
-            except Exception as exc:
-                last_error = exc
-                time.sleep(2)
-        raise last_error
+    async def startup():
+        init_db()
+        await seed_production_demo()
 
     return app

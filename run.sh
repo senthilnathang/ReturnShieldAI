@@ -33,7 +33,6 @@ mkdir -p "$RUN_DIR"
 
 BACKEND_PORT="${BACKEND_PORT:-8000}"
 FRONTEND_PORT="${FRONTEND_PORT:-5173}"
-BACKEND_DB="${BACKEND_DB:-$BACKEND_DIR/returnshield.db}"
 
 BACKEND_PID="$RUN_DIR/backend.pid"
 BACKEND_LOG="$RUN_DIR/backend.log"
@@ -127,18 +126,7 @@ start_backend() {
     return 0
   fi
   ensure_backend_venv
-  source_env_file || true
-  if [ -f "$ROOT/.env.local" ]; then
-    set -a
-    # shellcheck disable=SC1090
-    . "$ROOT/.env.local"
-    set +a
-  elif [ -f "$ROOT/.env.production" ]; then
-    set -a
-    # shellcheck disable=SC1090
-    . "$ROOT/.env.production"
-    set +a
-  fi
+  source_env_file || return 1
   setsid env PYTHONPATH="$ROOT" "$BACKEND_DIR/.venv/bin/python" -u -m uvicorn backend.app.main:app --host 127.0.0.1 --port "$BACKEND_PORT" >>"$BACKEND_LOG" 2>&1 </dev/null &
   echo $! >"$BACKEND_PID"
   if wait_for_http "http://127.0.0.1:${BACKEND_PORT}/api/health" 120 2; then
@@ -210,18 +198,30 @@ restart_frontend() {
   stop_frontend
   start_frontend
 }
+restart_all() {
+  stop_all
+  start_backend
+  start_frontend
+}
+
+seed_production_demo() {
+  print_info "Seeding PostgreSQL demo data"
+  "$BACKEND_DIR/.venv/bin/python" -m backend.app.scripts.seed_demo_data
+}
+
 load_demo() {
   local mode="${1:-auto}"
   print_header "Loading demo data"
-  source_env_file || true
+  source_env_file || return 1
   case "$mode" in
-    local|dev|sqlite)
+    local|dev|postgres)
       print_info "Using local Postgres seed"
       if is_running "$BACKEND_PID"; then
         stop_backend
       fi
       start_backend
-      print_ok "demo data loaded via backend startup seed"
+      seed_production_demo
+      print_ok "demo data loaded via PostgreSQL seed"
       ;;
     compose|docker)
       if ! command_exists docker && ! command_exists docker-compose; then
@@ -243,7 +243,8 @@ load_demo() {
           stop_backend
         fi
         start_backend
-        print_ok "demo data loaded via backend startup seed"
+        seed_production_demo
+        print_ok "demo data loaded via PostgreSQL seed"
       fi
       ;;
     *)
@@ -254,10 +255,12 @@ load_demo() {
 }
 
 
+
+
 check_backend() {
   print_header "Checking backend"
   ensure_backend_venv
-  source_env_file || true
+  source_env_file || return 1
   "$BACKEND_DIR/.venv/bin/python" -m compileall "$BACKEND_DIR/app"
   print_ok "backend syntax check passed"
 }
@@ -282,7 +285,7 @@ check_all() {
 test_backend() {
   print_header "Testing backend"
   ensure_backend_venv
-  source_env_file || true
+  source_env_file || return 1
   if [ -d "$BACKEND_DIR/tests" ] && find "$BACKEND_DIR/tests" -name 'test_*.py' -o -name '*_test.py' | grep -q .; then
     (cd "$BACKEND_DIR" && .venv/bin/pytest -q)
   else
@@ -418,7 +421,7 @@ Examples:
 Defaults:
   - backend runs on http://127.0.0.1:${BACKEND_PORT}
   - frontend runs on http://127.0.0.1:${FRONTEND_PORT}
-  - local demo data lives in backend/returnshield.db
+  - local demo data is loaded into PostgreSQL
 EOF
 }
 
@@ -452,9 +455,20 @@ source_env_file() {
       print_err "env file not found: $ENV_FILE"
       return 1
     fi
+  elif [ -f "$ROOT/.env.local" ]; then
+    print_info "Sourcing env file: $ROOT/.env.local"
+    set -a
+    # shellcheck disable=SC1090
+    . "$ROOT/.env.local"
+    set +a
+  elif [ -f "$ROOT/.env.production" ]; then
+    print_info "Sourcing env file: $ROOT/.env.production"
+    set -a
+    # shellcheck disable=SC1090
+    . "$ROOT/.env.production"
+    set +a
   fi
 }
-
 case "${1:-help}" in
   help|-h|--help) show_help ;;
   install)

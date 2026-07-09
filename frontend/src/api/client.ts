@@ -1,6 +1,16 @@
-import type { CaseDetail, CaseSummary, Metrics, PaginatedResponse, Rule, FeedbackRecord, ReturnRequestPayload, ScoreResponse } from '../types';
+import type { CaseDetail, CaseSummary, Metrics, PaginatedResponse, RecordsPage, Rule, FeedbackRecord, ReturnRequestPayload, ScoreResponse } from '../types';
 
-const API_URL = (import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8001/api");
+const API_URL = (import.meta.env.VITE_API_URL ?? "/api");
+
+function recordParams(p: Record<string, unknown>): string {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(p)) {
+    if (v === undefined || v === null || v === '') continue;
+    const key = k === 'merchantId' ? 'merchant_id' : k;
+    params.set(key, String(v));
+  }
+  return params.toString();
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
@@ -88,6 +98,26 @@ export const api = {
     const qs = params.toString();
     return request<Array<Record<string, unknown>>>(`/imports${qs ? `?${qs}` : ''}`);
   },
+
+  // Records (orders / payments / returns) — served by the production v1 API (PostgreSQL)
+  getOrders: (params: { skip?: number; limit?: number; q?: string; category?: string; merchantId?: string } = {}) => {
+    const qs = recordParams(params);
+    return request<RecordsPage>(`/v1/orders${qs ? `?${qs}` : ''}`);
+  },
+  getOrderStats: (merchantId?: string) =>
+    request<Record<string, unknown>>(`/v1/orders/stats${merchantId ? `?merchant_id=${merchantId}` : ''}`),
+  getPayments: (params: { skip?: number; limit?: number; q?: string; chargeback?: boolean; merchantId?: string } = {}) => {
+    const qs = recordParams(params);
+    return request<RecordsPage>(`/v1/payments${qs ? `?${qs}` : ''}`);
+  },
+  getPaymentStats: (merchantId?: string) =>
+    request<Record<string, unknown>>(`/v1/payments/stats${merchantId ? `?merchant_id=${merchantId}` : ''}`),
+  getReturnsList: (params: { skip?: number; limit?: number; q?: string; status?: string; merchantId?: string } = {}) => {
+    const qs = recordParams(params);
+    return request<RecordsPage>(`/v1/returns${qs ? `?${qs}` : ''}`);
+  },
+  getReturnStats: (merchantId?: string) =>
+    request<Record<string, unknown>>(`/v1/returns/stats${merchantId ? `?merchant_id=${merchantId}` : ''}`),
   evaluateAlerts: (data: Record<string, unknown>) =>
     request<{ alerts_fired: Array<Record<string, unknown>> }>('/alerts/evaluate', { method: 'POST', body: JSON.stringify(data) }),
   seedModuleData: () =>

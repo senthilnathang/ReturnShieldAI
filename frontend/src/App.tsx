@@ -4,9 +4,10 @@ import { ArrowRight, Ban, CheckCircle2, Flag, Hand, ShieldAlert, ThumbsUp } from
 import { api } from './api/client';
 import { AppShell } from './components/Layout/AppShell';
 import { Pagination } from './components/Pagination';
+import { RecordsPagination } from './components/RecordsPagination';
 import { ConfirmDialog } from './components/ui/ConfirmDialog';
 import { ToastProvider, useToast } from './contexts/ToastContext';
-import type { CaseDetail, CaseSummary, FeedbackRecord, Metrics, ReturnRequestPayload, Rule, ScoreResponse } from './types';
+import type { CaseDetail, CaseSummary, FeedbackRecord, Metrics, RecordsPage, ReturnRequestPayload, Rule, ScoreResponse } from './types';
 
 const badgeTone = (risk: string) =>
   risk === 'HIGH'
@@ -2786,6 +2787,298 @@ function EmbeddingsPage() {
   );
 }
 
+const fmtMoney = (v: unknown) =>
+  typeof v === 'number' && Number.isFinite(v)
+    ? v.toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 2 })
+    : '—';
+const fmtDate = (v: unknown) => (v ? new Date(String(v)).toLocaleString() : '—');
+const shortId = (v: unknown) => (v ? String(v).slice(0, 8) : '—');
+const num = (v: unknown) => (typeof v === 'number' ? v : Number(v) || 0);
+const str = (v: unknown) => (v === null || v === undefined || v === '' ? '—' : String(v));
+
+function OrdersBrowsePage() {
+  const [data, setData] = useState<RecordsPage | null>(null);
+  const [stats, setStats] = useState<Record<string, unknown> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [qInput, setQInput] = useState('');
+  const [q, setQ] = useState('');
+  const [category, setCategory] = useState('');
+
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [res, st] = await Promise.all([
+        api.getOrders({ skip: (page - 1) * pageSize, limit: pageSize, q: q || undefined, category: category || undefined }),
+        api.getOrderStats(),
+      ]);
+      setData(res);
+      setStats(st);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, [page, pageSize, q, category]);
+
+  const applySearch = () => { setQ(qInput.trim()); setPage(1); };
+  const categories = (stats?.by_category as Array<Record<string, unknown>> ?? []).map((c) => String(c.category));
+
+  return (
+    <div className="space-y-4">
+      <PageHeader eyebrow="Records" title="Orders" subtitle="Browse every imported order across the catalog." />
+      {error && <div className="rounded-[22px] border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</div>}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="Total orders" value={num(stats?.total_orders).toLocaleString()} />
+        <MetricCard label="Total value" value={fmtMoney(num(stats?.total_value))} accent="text-purple-primary" />
+        <MetricCard label="Avg order value" value={fmtMoney(num(stats?.avg_value))} />
+        <MetricCard label="Categories" value={categories.length} />
+      </div>
+      <Panel title="Orders" subtitle="Search by order ID, SKU, or product name. Filter by category.">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <input
+            value={qInput}
+            onChange={(e) => setQInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') applySearch(); }}
+            placeholder="Search order ID, SKU, product…"
+            className="min-w-[16rem] flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400"
+          />
+          <select value={category} onChange={(e) => { setCategory(e.target.value); setPage(1); }} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none">
+            <option value="">All categories</option>
+            {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <button onClick={applySearch} className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">Search</button>
+          {(q || category) && <button onClick={() => { setQInput(''); setQ(''); setCategory(''); setPage(1); }} className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">Clear</button>}
+        </div>
+        <div className="overflow-x-auto rounded-3xl border border-slate-200">
+          <table className="min-w-full text-left text-xs">
+            <thead className="bg-slate-50 text-slate-500">
+              <tr>
+                {['Order ID', 'Product', 'Category', 'Value', 'Qty', 'Method', 'Order date'].map((h) => (
+                  <th key={h} className="px-4 py-3 font-medium">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td className="px-4 py-6 text-slate-500" colSpan={7}>Loading…</td></tr>
+              ) : data?.items.length ? data.items.map((o) => (
+                <tr key={String(o.id)} className="border-t border-slate-100 bg-white">
+                  <td className="px-4 py-3 font-mono text-slate-700">{str(o.external_order_id)}</td>
+                  <td className="px-4 py-3 text-slate-700">{str(o.product_name)}</td>
+                  <td className="px-4 py-3 text-slate-700">{str(o.category)}</td>
+                  <td className="px-4 py-3 text-slate-700">{fmtMoney(num(o.product_value))}</td>
+                  <td className="px-4 py-3 text-slate-700">{str(o.quantity)}</td>
+                  <td className="px-4 py-3 text-slate-700">{str(o.payment_method)}</td>
+                  <td className="px-4 py-3 text-slate-500">{fmtDate(o.order_date)}</td>
+                </tr>
+              )) : (
+                <tr><td className="px-4 py-6 text-slate-500" colSpan={7}>No orders found.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        {data && <RecordsPagination currentPage={page} totalItems={data.total} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} />}
+      </Panel>
+    </div>
+  );
+}
+
+function PaymentsBrowsePage() {
+  const [data, setData] = useState<RecordsPage | null>(null);
+  const [stats, setStats] = useState<Record<string, unknown> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [qInput, setQInput] = useState('');
+  const [q, setQ] = useState('');
+  const [chargebackOnly, setChargebackOnly] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [res, st] = await Promise.all([
+        api.getPayments({ skip: (page - 1) * pageSize, limit: pageSize, q: q || undefined, chargeback: chargebackOnly || undefined }),
+        api.getPaymentStats(),
+      ]);
+      setData(res);
+      setStats(st);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, [page, pageSize, q, chargebackOnly]);
+
+  const applySearch = () => { setQ(qInput.trim()); setPage(1); };
+
+  return (
+    <div className="space-y-4">
+      <PageHeader eyebrow="Records" title="Payments" subtitle="Browse payments and chargebacks across all orders." />
+      {error && <div className="rounded-[22px] border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</div>}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="Total payments" value={num(stats?.total_payments).toLocaleString()} />
+        <MetricCard label="Total amount" value={fmtMoney(num(stats?.total_amount))} accent="text-purple-primary" />
+        <MetricCard label="Chargebacks" value={num(stats?.chargeback_count).toLocaleString()} accent="text-red-primary" />
+        <MetricCard label="Chargeback rate" value={`${num(stats?.chargeback_rate).toFixed(2)}%`} accent="text-orange-primary" />
+      </div>
+      <Panel title="Payments" subtitle="Search by method or card BIN. Toggle chargebacks-only.">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <input
+            value={qInput}
+            onChange={(e) => setQInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') applySearch(); }}
+            placeholder="Search method, card BIN…"
+            className="min-w-[16rem] flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400"
+          />
+          <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
+            <input type="checkbox" checked={chargebackOnly} onChange={(e) => { setChargebackOnly(e.target.checked); setPage(1); }} />
+            Chargebacks only
+          </label>
+          <button onClick={applySearch} className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">Search</button>
+          {(q || chargebackOnly) && <button onClick={() => { setQInput(''); setQ(''); setChargebackOnly(false); setPage(1); }} className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">Clear</button>}
+        </div>
+        <div className="overflow-x-auto rounded-3xl border border-slate-200">
+          <table className="min-w-full text-left text-xs">
+            <thead className="bg-slate-50 text-slate-500">
+              <tr>
+                {['Amount', 'Method', 'Card BIN', 'Chargeback', 'Customer', 'Order', 'Created'].map((h) => (
+                  <th key={h} className="px-4 py-3 font-medium">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td className="px-4 py-6 text-slate-500" colSpan={7}>Loading…</td></tr>
+              ) : data?.items.length ? data.items.map((p) => (
+                <tr key={String(p.id)} className="border-t border-slate-100 bg-white">
+                  <td className="px-4 py-3 font-medium text-slate-700">{fmtMoney(num(p.amount))}</td>
+                  <td className="px-4 py-3 text-slate-700">{str(p.payment_method)}</td>
+                  <td className="px-4 py-3 font-mono text-slate-700">{str(p.card_bin)}</td>
+                  <td className="px-4 py-3">
+                    {p.chargeback_flag ? <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-600">Chargeback</span> : <span className="text-slate-400">—</span>}
+                  </td>
+                  <td className="px-4 py-3 font-mono text-slate-500">{shortId(p.customer_id)}</td>
+                  <td className="px-4 py-3 font-mono text-slate-500">{shortId(p.order_id)}</td>
+                  <td className="px-4 py-3 text-slate-500">{fmtDate(p.created_at)}</td>
+                </tr>
+              )) : (
+                <tr><td className="px-4 py-6 text-slate-500" colSpan={7}>No payments found.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        {data && <RecordsPagination currentPage={page} totalItems={data.total} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} />}
+      </Panel>
+    </div>
+  );
+}
+
+function ReturnsBrowsePage() {
+  const [data, setData] = useState<RecordsPage | null>(null);
+  const [stats, setStats] = useState<Record<string, unknown> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [qInput, setQInput] = useState('');
+  const [q, setQ] = useState('');
+  const [status, setStatus] = useState('');
+
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [res, st] = await Promise.all([
+        api.getReturnsList({ skip: (page - 1) * pageSize, limit: pageSize, q: q || undefined, status: status || undefined }),
+        api.getReturnStats(),
+      ]);
+      setData(res);
+      setStats(st);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, [page, pageSize, q, status]);
+
+  const applySearch = () => { setQ(qInput.trim()); setPage(1); };
+  const statuses = (stats?.by_status as Array<Record<string, unknown>> ?? []).map((s) => String(s.status));
+  const topReasons = (stats?.top_reasons as Array<Record<string, unknown>> ?? []).slice(0, 5);
+
+  return (
+    <div className="space-y-4">
+      <PageHeader eyebrow="Records" title="Returns" subtitle="Browse return requests with reasons, conditions, and timing." />
+      {error && <div className="rounded-[22px] border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</div>}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="Total returns" value={num(stats?.total_returns).toLocaleString()} />
+        <MetricCard label="Avg hrs after delivery" value={num(stats?.avg_hours_after_delivery).toFixed(1)} accent="text-orange-primary" />
+        <MetricCard label="Distinct statuses" value={statuses.length} />
+        <MetricCard label="Top reason" value={topReasons[0] ? String(topReasons[0].reason) : '—'} />
+      </div>
+      <Panel title="Returns" subtitle="Search by reason or condition. Filter by status.">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <input
+            value={qInput}
+            onChange={(e) => setQInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') applySearch(); }}
+            placeholder="Search reason, condition, return ID…"
+            className="min-w-[16rem] flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400"
+          />
+          <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none">
+            <option value="">All statuses</option>
+            {statuses.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <button onClick={applySearch} className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">Search</button>
+          {(q || status) && <button onClick={() => { setQInput(''); setQ(''); setStatus(''); setPage(1); }} className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">Clear</button>}
+        </div>
+        <div className="overflow-x-auto rounded-3xl border border-slate-200">
+          <table className="min-w-full text-left text-xs">
+            <thead className="bg-slate-50 text-slate-500">
+              <tr>
+                {['Reason', 'Condition', 'Status', 'Return date', 'Hrs after delivery', 'Customer', 'Order'].map((h) => (
+                  <th key={h} className="px-4 py-3 font-medium">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td className="px-4 py-6 text-slate-500" colSpan={7}>Loading…</td></tr>
+              ) : data?.items.length ? data.items.map((r) => (
+                <tr key={String(r.id)} className="border-t border-slate-100 bg-white">
+                  <td className="px-4 py-3 text-slate-700">{str(r.return_reason)}</td>
+                  <td className="px-4 py-3 text-slate-700">{str(r.condition_reported)}</td>
+                  <td className="px-4 py-3">
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">{str(r.return_status)}</span>
+                  </td>
+                  <td className="px-4 py-3 text-slate-500">{fmtDate(r.return_date)}</td>
+                  <td className="px-4 py-3 text-slate-700">{r.hours_after_delivery !== null && r.hours_after_delivery !== undefined ? num(r.hours_after_delivery).toFixed(0) : '—'}</td>
+                  <td className="px-4 py-3 font-mono text-slate-500">{shortId(r.customer_id)}</td>
+                  <td className="px-4 py-3 font-mono text-slate-500">{shortId(r.order_id)}</td>
+                </tr>
+              )) : (
+                <tr><td className="px-4 py-6 text-slate-500" colSpan={7}>No returns found.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        {data && <RecordsPagination currentPage={page} totalItems={data.total} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} />}
+      </Panel>
+    </div>
+  );
+}
+
 function AppInner() {
   const [metrics, setMetrics] = useState<Metrics>();
   const [cases, setCases] = useState<CaseSummary[]>([]);
@@ -2796,21 +3089,21 @@ function AppInner() {
   const navigate = useNavigate();
 
   const refreshData = async () => {
-    const [freshMetrics, freshCasesRes] = await Promise.all([api.getMetrics(), api.getCases()]);
-    setMetrics(freshMetrics);
-    setCases(freshCasesRes.items);
+    const [freshMetricsRes, freshCasesRes] = await Promise.allSettled([api.getMetrics(), api.getCases(undefined, 50)]);
+    if (freshMetricsRes.status === "fulfilled") setMetrics(freshMetricsRes.value);
+    if (freshCasesRes.status === "fulfilled") setCases(freshCasesRes.value.items);
   };
 
   useEffect(() => {
     refreshData().catch(() => undefined);
     api.getRules().then((res) => setRules(res.items)).catch(() => undefined);
-    api.getFeedback().then((res) => setFeedback(res.items)).catch(() => undefined);
+    api.getFeedback(undefined, 25).then((res) => setFeedback(res.items)).catch(() => undefined);
   }, []);
 
   const handleDecision = async (decision: string, notes: string, id: string) => {
     const confirmedLabel = decision === "Mark Confirmed Fraud" ? "confirmed_fraud" : decision === "Mark False Positive" ? "false_positive" : undefined;
     await api.updateDecision(id, { decision, notes, confirmed_label: confirmedLabel });
-    await Promise.all([refreshData(), api.getFeedback().then((res) => setFeedback(res.items))]);
+    await Promise.all([refreshData(), api.getFeedback(undefined, 25).then((res) => setFeedback(res.items))]);
   };
 
   return (
@@ -2818,6 +3111,9 @@ function AppInner() {
       <Routes>
         <Route path="/" element={<OverviewPage metrics={metrics} onReturnCreated={async (result) => { setLastScore(result); await refreshData(); navigate(`/investigations/${result.case_id}`); }} />} />
         <Route path="/cases" element={<CasesPage cases={cases} filters={filters} setFilters={setFilters} />} />
+        <Route path="/orders" element={<OrdersBrowsePage />} />
+        <Route path="/payments" element={<PaymentsBrowsePage />} />
+        <Route path="/returns" element={<ReturnsBrowsePage />} />
         <Route path="/cases/:id" element={<CaseDetailRoute onAction={handleDecision} onLoaded={setLastScore} />} />
         <Route path="/decision-engine" element={<DecisionEnginePage latest={lastScore} />} />
         <Route path="/enhancements" element={<EnhancementsPage latest={lastScore} cases={cases} />} />
