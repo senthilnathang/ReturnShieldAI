@@ -140,7 +140,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="mt-md rounded-lg border border-grey-border bg-grey-background-light p-md">
             <div className="text-xs uppercase tracking-[0.24em] text-grey-secondary">Decision chain</div>
             <div className="mt-1 text-xs leading-5 text-grey-primary">
-              Return request → rules → ML → explainability → analyst feedback
+              Return → rules (30%) → structured ML (30%) → NLP (25%) → anomaly/graph (15%) → explainability → analyst feedback
             </div>
             <Link
               to="/investigations"
