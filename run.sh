@@ -127,16 +127,28 @@ start_backend() {
     return 0
   fi
   ensure_backend_venv
-  print_header "Starting backend"
-  setsid env PYTHONPATH="$ROOT" DATABASE_URL="sqlite:///$BACKEND_DB" "$BACKEND_DIR/.venv/bin/python" -u -m uvicorn backend.app.main:app --host 127.0.0.1 --port "$BACKEND_PORT" >>"$BACKEND_LOG" 2>&1 </dev/null &
+  source_env_file || true
+  if [ -f "$ROOT/.env.local" ]; then
+    set -a
+    # shellcheck disable=SC1090
+    . "$ROOT/.env.local"
+    set +a
+  elif [ -f "$ROOT/.env.production" ]; then
+    set -a
+    # shellcheck disable=SC1090
+    . "$ROOT/.env.production"
+    set +a
+  fi
+  setsid env PYTHONPATH="$ROOT" "$BACKEND_DIR/.venv/bin/python" -u -m uvicorn backend.app.main:app --host 127.0.0.1 --port "$BACKEND_PORT" >>"$BACKEND_LOG" 2>&1 </dev/null &
   echo $! >"$BACKEND_PID"
-  if wait_for_http "http://127.0.0.1:${BACKEND_PORT}/api/health" 40 1; then
+  if wait_for_http "http://127.0.0.1:${BACKEND_PORT}/api/health" 120 2; then
     print_ok "backend running on http://127.0.0.1:${BACKEND_PORT}"
   else
     print_err "backend did not become ready; see $BACKEND_LOG"
     return 1
   fi
 }
+
 
 start_frontend() {
   if is_running "$FRONTEND_PID"; then
@@ -197,24 +209,16 @@ restart_frontend() {
   stop_frontend
   start_frontend
 }
-
-restart_all() {
-  stop_all
-  start_backend
-  start_frontend
-}
-
 load_demo() {
   local mode="${1:-auto}"
   print_header "Loading demo data"
+  source_env_file || true
   case "$mode" in
     local|dev|sqlite)
-      print_info "Using local SQLite seed"
+      print_info "Using local Postgres seed"
       if is_running "$BACKEND_PID"; then
         stop_backend
       fi
-      rm -f "$BACKEND_DB"
-      rm -f "$ROOT/returnshield.db"
       start_backend
       print_ok "demo data loaded via backend startup seed"
       ;;
@@ -233,12 +237,10 @@ load_demo() {
         stop_all
         compose_load_demo
       else
-        print_info "Docker Compose not available; using local SQLite seed"
+        print_info "Docker Compose not available; using local Postgres seed"
         if is_running "$BACKEND_PID"; then
           stop_backend
         fi
-        rm -f "$BACKEND_DB"
-        rm -f "$ROOT/returnshield.db"
         start_backend
         print_ok "demo data loaded via backend startup seed"
       fi
@@ -250,9 +252,11 @@ load_demo() {
   esac
 }
 
+
 check_backend() {
   print_header "Checking backend"
   ensure_backend_venv
+  source_env_file || true
   "$BACKEND_DIR/.venv/bin/python" -m compileall "$BACKEND_DIR/app"
   print_ok "backend syntax check passed"
 }
@@ -277,6 +281,7 @@ check_all() {
 test_backend() {
   print_header "Testing backend"
   ensure_backend_venv
+  source_env_file || true
   if [ -d "$BACKEND_DIR/tests" ] && find "$BACKEND_DIR/tests" -name 'test_*.py' -o -name '*_test.py' | grep -q .; then
     (cd "$BACKEND_DIR" && .venv/bin/pytest -q)
   else
@@ -386,23 +391,67 @@ show_help() {
 ReturnShield AI local stack manager
 
 Usage:
-  ./run.sh install [backend|frontend|all]
-  ./run.sh load demo [auto|local|compose]
-  ./run.sh run [backend|frontend|all|dev]
-  ./run.sh restart [backend|frontend|all|dev]
-  ./run.sh check [backend|frontend|all|dev]
-  ./run.sh test [backend|frontend|all|dev]
-  ./run.sh stop [backend|frontend|all|dev]
-  ./run.sh status
-  ./run.sh logs [backend|frontend]
-  ./run.sh compose [up|down|restart|status|logs|load]
-  ./run.sh help
+  ./run.sh [--env-file <path>] <command> [args...]
+
+Global flags:
+  --env-file, -e <path>   Source env file before running the command
+
+Commands:
+  install [backend|frontend|all]
+  load demo [auto|local|compose]
+  run [backend|frontend|all|dev]
+  restart [backend|frontend|all|dev]
+  check [backend|frontend|all|dev]
+  test [backend|frontend|all|dev]
+  stop [backend|frontend|all|dev]
+  status
+  logs [backend|frontend]
+  compose [up|down|restart|status|logs|load]
+  help
+
+Examples:
+  ./run.sh --env-file .env.test test backend
+  ./run.sh -e .env.production run backend
+  ./run.sh test backend
 
 Defaults:
   - backend runs on http://127.0.0.1:${BACKEND_PORT}
   - frontend runs on http://127.0.0.1:${FRONTEND_PORT}
   - local demo data lives in backend/returnshield.db
 EOF
+}
+
+# Parse global flags (--env-file) from any position
+ENV_FILE=""
+PASSTHROUGH_ARGS=()
+SKIP_NEXT=false
+for arg in "$@"; do
+  if $SKIP_NEXT; then
+    ENV_FILE="$arg"
+    SKIP_NEXT=false
+  elif [ "$arg" = "--env-file" ] || [ "$arg" = "-e" ]; then
+    SKIP_NEXT=true
+  else
+    PASSTHROUGH_ARGS+=("$arg")
+  fi
+done
+# Re-set positional args without the flag
+set -- "${PASSTHROUGH_ARGS[@]}"
+
+# Source env file if provided
+source_env_file() {
+  if [ -n "$ENV_FILE" ]; then
+    if [ -f "$ENV_FILE" ]; then
+      print_info "Sourcing env file: $ENV_FILE"
+      set -a
+      # shellcheck disable=SC1090
+      . "$ENV_FILE"
+      set +a
+    else
+      print_err "env file not found: $ENV_FILE"
+      return 1
+    fi
+  fi
 }
 
 case "${1:-help}" in
