@@ -31,5 +31,13 @@ Thumbs.db
 *.pid
 *.log
 
+# Generated model artifacts
+models/
+*.joblib
+*.index
+
+# Generated config
+config/merchants/
+
 # Docker
 .docker/
