@@ -209,13 +209,18 @@ def train_single_model(df: pd.DataFrame, model_type: str, version: str | None = 
         raise ValueError("Training target needs at least two classes")
 
     version = version or next_version(model_type)
-    x_train, x_test, y_train, y_test = train_test_split(
-        feature_frame,
-        target,
-        test_size=0.2,
-        random_state=ml_config.random_state,
-        stratify=target,
-    )
+    class_counts = target.value_counts(dropna=False)
+    if len(target) < 8 or class_counts.min() < 2:
+        # Small demo datasets can be too tiny for a stratified holdout.
+        x_train, x_test, y_train, y_test = feature_frame, feature_frame, target, target
+    else:
+        x_train, x_test, y_train, y_test = train_test_split(
+            feature_frame,
+            target,
+            test_size=0.2,
+            random_state=ml_config.random_state,
+            stratify=target,
+        )
 
     preprocessor = build_preprocessor(model_type)
     x_train_proc = preprocessor.fit_transform(x_train)

@@ -14,18 +14,18 @@ const navSections = [
     label: 'Intelligence',
     items: [
       { to: '/decision-engine', label: 'Decision Engine', icon: Brain },
-      { to: '/enhancements', label: 'AI / ML', icon: Sparkles },
-      { to: '/fraud-ring', label: 'Fraud Ring', icon: GitBranch },
+      { to: '/enhancements', label: 'Fraud Signals', icon: Sparkles },
+      { to: '/fraud-ring', label: 'Graph Signals', icon: GitBranch },
       { to: '/patterns', label: 'Patterns', icon: Search },
       { to: '/evidence', label: 'Evidence', icon: Shield },
-      { to: '/nlp', label: 'NLP Analyzer', icon: Brain },
+      { to: '/nlp', label: 'Text Signals', icon: Brain },
       { to: '/embeddings', label: 'Embeddings', icon: Database },
     ],
   },
   {
     label: 'Analytics',
     items: [
-      { to: '/graph-analytics', label: 'Graph Analytics', icon: GitBranch },
+      { to: '/graph-analytics', label: 'Network Graph', icon: GitBranch },
       { to: '/feedback', label: 'Feedback', icon: Sparkles },
     ],
   },
@@ -40,9 +40,9 @@ const navSections = [
   {
     label: 'System',
     items: [
-      { to: '/modules', label: 'Modules', icon: Monitor },
+      { to: '/modules', label: 'Signal Modules', icon: Monitor },
       { to: '/models', label: 'Model Registry', icon: Warehouse },
-      { to: '/monitoring', label: 'Monitoring', icon: Activity },
+      { to: '/monitoring', label: 'Model Health', icon: Activity },
       { to: '/kaggle', label: 'Kaggle Import', icon: Database },
     ],
   },

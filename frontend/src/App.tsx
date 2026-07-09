@@ -199,7 +199,7 @@ function OverviewPage({ metrics, onReturnCreated }: { metrics?: Metrics; onRetur
             <div className="max-w-2xl">
               <div className="text-[11px] uppercase tracking-[0.28em] text-slate-500">Today's signal</div>
               <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
-                Return intake is scored by rules, structured ML, NLP, anomaly detection, and fraud-ring features.
+                Return intake is scored by rules and supervised ML, with NLP, anomaly detection, and fraud-ring signals available for explainability and investigation.
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600 sm:text-base">
                 Submit a return request to generate a risk score, decision, explanation, and analyst case record.
@@ -207,23 +207,19 @@ function OverviewPage({ metrics, onReturnCreated }: { metrics?: Metrics; onRetur
             </div>
             <div className="rounded-[22px] border border-slate-200 bg-slate-950 px-4 py-4 text-white shadow-sm">
               <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400">Decision chain</div>
-              <div className="mt-2 text-lg font-semibold">4-layer fusion engine</div>
+              <div className="mt-2 text-lg font-semibold">Rule-led supervised scorer</div>
               <div className="mt-3 space-y-2 text-sm text-slate-300">
                 <div className="flex items-center justify-between gap-6">
                   <span>Rules</span>
-                  <span className="font-mono text-slate-100">30%</span>
+                  <span className="font-mono text-slate-100">35%</span>
                 </div>
                 <div className="flex items-center justify-between gap-6">
-                  <span>Structured ML</span>
-                  <span className="font-mono text-slate-100">30%</span>
+                  <span>Supervised ML</span>
+                  <span className="font-mono text-slate-100">65%</span>
                 </div>
-                <div className="flex items-center justify-between gap-6">
-                  <span>NLP</span>
-                  <span className="font-mono text-slate-100">25%</span>
-                </div>
-                <div className="flex items-center justify-between gap-6">
-                  <span>Anomaly / graph</span>
-                  <span className="font-mono text-slate-100">15%</span>
+                <div className="flex items-center justify-between gap-6 text-slate-400">
+                  <span>Fallback</span>
+                  <span className="font-mono text-slate-100">Heuristic</span>
                 </div>
               </div>
             </div>
@@ -281,10 +277,9 @@ function OverviewPage({ metrics, onReturnCreated }: { metrics?: Metrics; onRetur
             <div className="rounded-[22px] border border-slate-200 bg-white p-4">
               <div className="text-[11px] uppercase tracking-[0.24em] text-slate-500">Signal mix</div>
               <div className="mt-3 space-y-2 text-sm text-slate-700">
-                <div className="flex items-center justify-between"><span>Rules</span><span className="font-mono">30%</span></div>
-                <div className="flex items-center justify-between"><span>ML</span><span className="font-mono">30%</span></div>
-                <div className="flex items-center justify-between"><span>NLP</span><span className="font-mono">25%</span></div>
-                <div className="flex items-center justify-between"><span>Graph / anomaly</span><span className="font-mono">15%</span></div>
+                <div className="flex items-center justify-between"><span>Rules</span><span className="font-mono">35%</span></div>
+                <div className="flex items-center justify-between"><span>Supervised ML</span><span className="font-mono">65%</span></div>
+                <div className="flex items-center justify-between text-slate-500"><span>Fallback</span><span className="font-mono">Heuristic</span></div>
               </div>
             </div>
           </div>
@@ -808,7 +803,7 @@ function AdvancedSignalsPanelView({ advancedSignals }: { advancedSignals: CaseDe
         <FraudRingPanelView graph={graph} />
 
         <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="text-xs uppercase tracking-[0.22em] text-slate-500">AI investigator</div>
+          <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Investigation summary</div>
           <div className="mt-2 text-sm leading-6 text-slate-700">{String(investigator.summary ?? "No investigator summary available.")}</div>
           <div className="mt-3 text-xs uppercase tracking-[0.22em] text-slate-500">Recommendation</div>
           <div className="mt-1 text-sm font-medium text-slate-900">{String(investigator.recommendation ?? "Review manually")}</div>
@@ -855,7 +850,7 @@ function EnhancementsPage({ latest, cases = [] }: { latest?: ScoreResponse; case
       details: latest?.advanced_signals?.graph_fraud as Record<string, unknown> | undefined,
     },
     {
-      title: 'AI investigator',
+      title: 'Investigation summary',
       description: 'A compact evidence summary turns signals into analyst-ready next actions.',
       accent: 'from-slate-50 to-white',
       metric: String((latest?.advanced_signals?.llm_investigator as Record<string, unknown> | undefined)?.risk_level ?? '—'),
@@ -868,7 +863,7 @@ function EnhancementsPage({ latest, cases = [] }: { latest?: ScoreResponse; case
       <PageHeader
         eyebrow="Decision intelligence"
         title="Decision engine"
-        subtitle="See how rules, ML, NLP, and anomaly detection fuse into the final fraud decision."
+        subtitle="See how rules and supervised ML drive the current decision path, with NLP, graph, and anomaly signals used for explanation."
       />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Latest final score" value={latest?.risk_score?.toFixed(1) ?? '—'} accent="text-blue-700" />
@@ -877,7 +872,7 @@ function EnhancementsPage({ latest, cases = [] }: { latest?: ScoreResponse; case
         <MetricCard label="Cases with elevated risk" value={flaggedCases.length} accent="text-sky-700" />
       </div>
 
-      <Panel title="AI / ML capabilities" subtitle="Dedicated view for the fraud intelligence stack used by ReturnShield AI.">
+      <Panel title="Fraud intelligence signals" subtitle="Supporting signals that enrich the rule-led supervised decision path.">
         <div className="grid gap-4 xl:grid-cols-2">
           {signalCards.map((card) => (
             <div key={card.title} className={`rounded-[24px] border border-slate-200 bg-gradient-to-br ${card.accent} p-4 shadow-sm`}>
@@ -935,7 +930,7 @@ function EnhancementsPage({ latest, cases = [] }: { latest?: ScoreResponse; case
 
         <Panel title="Decisioning overview" subtitle="The AI stack feeds into a single fraud decision and analyst workflow.">
           <div className="space-y-3 text-sm text-slate-700">
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">Structured features, text signals, anomaly detection, and rule scores are fused into one return risk score.</div>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">Rules and supervised ML form the live decision path. NLP, graph, and anomaly signals remain available for explanation and manual review.</div>
             <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">Explainability converts the score into reason codes, evidence summaries, and action guidance for analysts.</div>
             <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">Feedback from approve / reject / fraud labels is stored for future retraining.</div>
           </div>
@@ -1196,7 +1191,7 @@ function InvestigationPage({ caseDetail, onAction }: { caseDetail?: CaseDetail; 
         <TimelinePanel timeline={caseDetail.timeline} />
       </div>
 
-      <Panel title="AI/ML enhancements" subtitle="Behavioral ensemble, semantic NLP, image/OCR checks, graph fraud, and the AI investigator">
+      <Panel title="Supporting signals" subtitle="Behavioral models, NLP, image/OCR checks, graph fraud, and the investigation summary">
         <AdvancedSignalsPanelView advancedSignals={caseDetail.advanced_signals} />
       </Panel>
 
@@ -1266,9 +1261,9 @@ function DecisionEnginePage({ latest }: { latest?: ScoreResponse }) {
     "Data normalization",
     "Feature extraction",
     "Rule engine",
-    "ML risk engine",
-    "NLP engine",
-    "Fusion engine",
+    "Supervised ML",
+    "NLP signals",
+    "Fraud graph",
     "Decision engine",
     "Analyst feedback",
   ];
@@ -1278,7 +1273,7 @@ function DecisionEnginePage({ latest }: { latest?: ScoreResponse }) {
       <PageHeader
         eyebrow="Decision intelligence"
         title="Decision engine"
-        subtitle="See how rules, ML, NLP, and anomaly detection fuse into the final fraud decision."
+        subtitle="See how rules and supervised ML drive the current decision path, with NLP, graph, and anomaly signals used for explanation."
       />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Latest final score" value={latest?.risk_score?.toFixed(1) ?? "—"} accent="text-blue-700" />
@@ -1287,7 +1282,7 @@ function DecisionEnginePage({ latest }: { latest?: ScoreResponse }) {
         <MetricCard label="Risk level" value={latest?.risk_level ?? "—"} />
       </div>
 
-      <Panel title="Decisioning architecture" subtitle="Decision-first flow adapted from Marble-style orchestration">
+      <Panel title="Decisioning architecture" subtitle="Rule-led flow with supervised scoring and analyst feedback">
         <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-3">
           {pipeline.map((step, index) => (
             <div key={step} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
@@ -1299,9 +1294,9 @@ function DecisionEnginePage({ latest }: { latest?: ScoreResponse }) {
       </Panel>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <Panel title="Signal fusion" subtitle="How individual signals combine into the final decision">
+        <Panel title="Scoring path" subtitle="How the current signals combine into the final decision">
           <div className="space-y-3">
-            {[["Customer risk", "Persistent behavioral exposure from history and shared identity patterns"], ["Rule engine", "Hard business controls such as weight mismatch and fast returns"], ["ML risk engine", "Structured anomaly scoring across customer, order, and return behavior"], ["NLP engine", "Detects refund pressure, empty-box claims, and repeated scripts"], ["Fusion engine", "Normalizes all scores into a single 0-100 outcome"]].map(([title, body]) => (
+            {[["Customer risk", "Persistent behavioral exposure from history and shared identity patterns"], ["Rule engine", "Hard business controls such as weight mismatch and fast returns"], ["Supervised ML", "Tabular fraud probability from PostgreSQL-trained models"], ["NLP and graph", "Detects refund pressure, repeated scripts, and connected accounts"], ["Fallback", "Heuristic scoring when a promoted model is unavailable"]].map(([title, body]) => (
               <div key={title} className="rounded-3xl border border-slate-200 bg-white p-4">
                 <div className="text-sm font-medium text-slate-800">{title}</div>
                 <div className="mt-1 text-sm text-slate-600">{body}</div>
@@ -1419,7 +1414,7 @@ function RulesPage({ rules = [], setRules }: { rules?: Rule[]; setRules: Dispatc
         <Panel title="Policy notes" subtitle="Keep the rule set easy to audit and change.">
           <div className="space-y-3 text-sm text-slate-700">
             <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">JSON-backed conditions keep the system editable without a custom rule builder.</div>
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">Scores contribute to the fusion engine, but the final decision still blends ML, NLP, and anomaly signals.</div>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">Rules and supervised ML drive the live score. NLP, graph, and anomaly signals remain supporting evidence for the analyst workflow.</div>
             <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">Analyst feedback should drive future rule tuning when patterns are repeatedly confirmed.</div>
           </div>
         </Panel>
@@ -1716,7 +1711,7 @@ function FraudRingExplorerPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader eyebrow="Intelligence" title="Fraud Ring Explorer" subtitle="Connected identities, devices, and patterns across the fraud graph." />
+      <PageHeader eyebrow="Intelligence" title="Graph Signals" subtitle="Connected identities, devices, and patterns across the fraud graph." />
       <Panel title="Graph overview" subtitle="NetworkX-based fraud ring detection with community analysis">
         {loading ? <div className="p-8 text-center text-grey-secondary">Loading graph data...</div> : !graphData ? (
           <div className="p-8 text-center text-grey-secondary">No graph data available.</div>
@@ -1995,7 +1990,7 @@ function GraphAnalyticsPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader eyebrow="Analytics" title="Graph Analytics" subtitle="Fraud network topology and community analysis." />
+      <PageHeader eyebrow="Analytics" title="Network Graph" subtitle="Fraud network topology and community analysis." />
       <div className="grid gap-4 sm:grid-cols-3">
         <MetricCard label="Network size" value={String(Number(graphData?.total_nodes ?? 0) + Number(graphData?.total_edges ?? 0))} accent="text-purple-primary" subtext="nodes + edges" />
         <MetricCard label="Avg. cluster size" value={graphData?.customer_clusters ? (graphData.customer_clusters as number[]).length > 0 ? ((graphData.customer_clusters as number[]).reduce((a, b) => a + b, 0) / (graphData.customer_clusters as number[]).length).toFixed(1) : '0' : '—'} accent="text-orange-primary" />
@@ -2307,7 +2302,7 @@ function ModuleDashboardPage() {
       <PageHeader
         eyebrow="System"
         title="Module Dashboard"
-        subtitle="Status of all AI/ML intelligence modules."
+        subtitle="Status of all fraud intelligence modules."
         action={
           <div className="flex gap-2">
             <button onClick={handleRetrain} className="rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
@@ -2343,7 +2338,7 @@ function ModuleDashboardPage() {
               </div>
             </div>
           </Panel>
-          <Panel title="Model Registry" subtitle="Versions per category">
+          <Panel title="Model Registry" subtitle="Versioned supervised models by category">
             <div className="space-y-2">
               {models ? Object.entries(models).map(([cat, info]) => {
                 const i = info as Record<string, unknown>;
@@ -2359,7 +2354,7 @@ function ModuleDashboardPage() {
               }) : <div className="text-sm text-grey-secondary">No model data.</div>}
             </div>
           </Panel>
-          <Panel title="Monitoring" subtitle="Performance metrics">
+          <Panel title="Model Health" subtitle="Performance metrics">
             <div className="space-y-3">
               <MetricCard label="Avg prediction" value={Number(metrics?.avg_prediction ?? 0).toFixed(1)} />
               <MetricCard label="Avg latency" value={`${Number(metrics?.avg_latency_ms ?? 0).toFixed(0)} ms`} accent="text-orange-primary" />
@@ -2456,7 +2451,7 @@ function MerchantsPage() {
             )) : <div className="text-sm text-grey-secondary">No merchants configured.</div>}
           </div>
         </Panel>
-        <Panel title={selected ? `Config: ${selected}` : 'Merchant config'} subtitle="Risk thresholds, fusion weights, and rules.">
+        <Panel title={selected ? `Config: ${selected}` : 'Merchant config'} subtitle="Risk thresholds, scoring weights, and rules.">
           {config ? (
             <div className="space-y-3">
               {Object.entries(config).map(([key, value]) => (
@@ -2488,7 +2483,7 @@ function ModelsPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader eyebrow="System" title="Model Registry" subtitle="Browse and manage versioned ML models across all categories." />
+      <PageHeader eyebrow="System" title="Model Registry" subtitle="Browse and manage versioned supervised models across all categories." />
       {loading ? (
         <Panel title="Loading" subtitle="Fetching model registry..."><div className="p-8 text-center text-grey-secondary">Loading...</div></Panel>
       ) : models ? (
@@ -2551,7 +2546,7 @@ function MonitoringPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader eyebrow="System" title="Monitoring" subtitle="Performance metrics and data drift detection."
+      <PageHeader eyebrow="System" title="Model Health" subtitle="Performance metrics and data drift detection."
         action={<button onClick={runDrift} className="rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm">Check drift</button>}
       />
       {loading ? (
@@ -2613,7 +2608,7 @@ function NlpAnalyzerPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader eyebrow="Intelligence" title="NLP Analyzer" subtitle="Analyze return reason text for fraud signals, urgency, and manipulation." />
+      <PageHeader eyebrow="Intelligence" title="Text Signals" subtitle="Analyze return reason text for fraud signals, urgency, and manipulation." />
       <div className="grid gap-4 xl:grid-cols-2">
         <Panel title="Input text" subtitle="Enter a customer's return reason or chat transcript.">
           <textarea value={text} onChange={e => setText(e.target.value)} className="min-h-[200px] w-full rounded-lg border border-grey-border bg-grey-background p-3 text-sm outline-none" />

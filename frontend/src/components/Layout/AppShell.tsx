@@ -29,7 +29,7 @@ const navSections = [
     label: 'Intelligence',
     items: [
       { to: '/decision-engine', label: 'Decision Engine', icon: Brain },
-      { to: '/enhancements', label: 'AI / ML', icon: Sparkles },
+      { to: '/enhancements', label: 'Fraud Signals', icon: Sparkles },
     ],
   },
   {
@@ -140,7 +140,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="mt-md rounded-lg border border-grey-border bg-grey-background-light p-md">
             <div className="text-xs uppercase tracking-[0.24em] text-grey-secondary">Decision chain</div>
             <div className="mt-1 text-xs leading-5 text-grey-primary">
-              Return → rules (30%) → structured ML (30%) → NLP (25%) → anomaly/graph (15%) → explainability → analyst feedback
+              Return → rules (35%) → supervised ML (65%) → explainability → analyst feedback
+            </div>
+            <div className="mt-1 text-[11px] leading-4 text-grey-secondary">
+              If the promoted model is unavailable, the scorer falls back to a heuristic path and keeps the API response flowing.
             </div>
             <Link
               to="/investigations"
