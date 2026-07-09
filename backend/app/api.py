@@ -19,6 +19,7 @@ from backend.app.ml.train import ModelBundle, train_models
 from backend.app.models import AnalystFeedback, Customer, FraudScore, ModelTrainingRun, Order, ReturnCase, ReturnRecord, Rule
 from backend.app.rules.engine import RuleEngine
 from backend.app.modules.routes import router as modules_router
+from backend.app.api_v1 import router as v1_router
 from backend.app.schemas.common import (
     AnalystDecisionPayload,
     CaseDetail,
@@ -409,6 +410,26 @@ def trigger_seed(session: Session = Depends(get_session)):
     return {"seeded": True, "results": {k: v for k, v in results.items() if isinstance(v, (int, bool, str))}}
 
 
+@router.post("/seed/cases")
+def trigger_case_backfill(
+    session: Session = Depends(get_session),
+    cases: int = 10_000,
+    investigations: int = 1_000,
+    batch_size: int = 250,
+    seed: int = 42,
+):
+    from backend.app.scripts.generate_case_dataset import run_backfill
+
+    result = run_backfill(
+        session,
+        cases_target=cases,
+        investigations_target=investigations,
+        batch_size=batch_size,
+        seed=seed,
+    )
+    return {"seeded": True, **result}
+
+
 @router.get("/modules/dashboard")
 def modules_dashboard(session: Session = Depends(get_session)):
     from backend.app.modules.model_registry import ModelRegistry
@@ -449,6 +470,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(router)
     app.include_router(modules_router)
+    app.include_router(v1_router)
 
     @app.on_event("startup")
     def startup():
