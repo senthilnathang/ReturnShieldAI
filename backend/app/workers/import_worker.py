@@ -4,7 +4,7 @@ from __future__ import annotations
 Import Worker — runs large CSV imports in the background.
 
 Usage:
-    python -m app.workers.import_worker --file data/large_import.csv --merchant-id <UUID>
+    python -m backend.app.workers.import_worker --file data/large_import.csv --merchant-id <UUID>
 """
 
 import argparse
@@ -17,9 +17,9 @@ from uuid import UUID
 # Ensure PYTHONPATH is set
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.core.database import async_session_factory
-from app.core.logging import setup_logging
-from app.services.import_service import ImportService
+from ..core.database import async_session_factory
+from ..core.logging import setup_logging
+from ..services.import_service import ImportService
 
 logger = logging.getLogger("returnshield.worker.import_worker")
 

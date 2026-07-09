@@ -4,7 +4,7 @@ from __future__ import annotations
 Realtime Scoring Worker — consumes Redis Stream and runs scoring stub.
 
 Usage:
-    python -m app.workers.realtime_worker --consumer worker-1
+    python -m backend.app.workers.realtime_worker --consumer worker-1
 """
 
 import argparse
@@ -17,11 +17,11 @@ from uuid import UUID
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.core.database import async_session_factory
-from app.core.logging import setup_logging
-from app.core.redis import RedisClient, redis_client
-from app.services.realtime_service import RealtimeService
-from app.services.scoring_stub_service import ScoringStubService
+from ..core.database import async_session_factory
+from ..core.logging import setup_logging
+from ..core.redis import RedisClient, redis_client
+from ..services.realtime_service import RealtimeService
+from ..services.scoring_stub_service import ScoringStubService
 
 logger = logging.getLogger("returnshield.worker.realtime")
 SHUTDOWN = False

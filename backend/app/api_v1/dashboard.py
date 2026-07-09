@@ -6,9 +6,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_async_session
-from app.core.redis import get_redis, RedisClient
-from app.services.dashboard_service import DashboardService
+from ..core.database import get_async_session
+from ..core.redis import get_redis, RedisClient
+from ..services.dashboard_service import DashboardService
 
 logger = logging.getLogger("returnshield.api.dashboard")
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])

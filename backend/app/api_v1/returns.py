@@ -7,15 +7,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 
-from app.core.database import get_async_session
-from app.core.redis import get_redis, RedisClient
-from backend.app.prod_models.return_request import ReturnRequest
-from app.repositories.return_repository import ReturnRepository
-from app.repositories.customer_repository import CustomerRepository
-from app.repositories.order_repository import OrderRepository
-from app.services.realtime_service import RealtimeService
-from app.services.scoring_stub_service import ScoringStubService
-from app.schemas.return_schema import ReturnRequestCreate, ReturnRequestRead, EnqueueScoreRequest, ScoringResult
+from ..core.database import get_async_session
+from ..core.redis import get_redis, RedisClient
+from ..prod_models.return_request import ReturnRequest
+from ..repositories.return_repository import ReturnRepository
+from ..repositories.customer_repository import CustomerRepository
+from ..repositories.order_repository import OrderRepository
+from ..services.realtime_service import RealtimeService
+from ..services.scoring_stub_service import ScoringStubService
+from ..schemas.return_schema import ReturnRequestCreate, ReturnRequestRead, EnqueueScoreRequest, ScoringResult
 
 logger = logging.getLogger("returnshield.api.returns")
 router = APIRouter(prefix="/returns", tags=["Returns"])

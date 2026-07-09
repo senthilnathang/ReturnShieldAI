@@ -7,7 +7,7 @@ from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, Text, fun
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base
+from ..db.base import Base
 
 
 class Shipment(Base):

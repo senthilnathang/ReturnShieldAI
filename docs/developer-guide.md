@@ -1,4 +1,4 @@
-# ReturnShield AI — Developer Guide
+# ReturnShield AI - Developer Guide
 
 ## Architecture Overview
 
@@ -8,10 +8,10 @@ Two codebases coexist in the same repository:
 |--------|--------------|----------------------|
 | Entry point | `backend/app/main.py` | `backend/app/prod_main.py` |
 | API routes | `backend/app/api.py` | `backend/app/api_v1/` |
-| Models | `backend/app/models/` (SQLModel, 8 tables) | `backend/app/prod_models/` (SQLAlchemy 2.0, 16 tables) |
+| Models | `backend/app/models/` (SQLModel, 8 tables) | `backend/app/prod_models/` (SQLAlchemy 2.0, 17 tables) |
 | Database | SQLite | PostgreSQL 15+ |
 | Cache | None | Redis 7 |
-| Workers | None | Redis Stream consumer + CLI import |
+| Workers | None | Redis Stream consumer + CLI import + ML training worker |
 
 ## Project Layout
 
@@ -20,8 +20,8 @@ backend/
 ├── app/
 │   ├── main.py                   # Hackathon entry: uvicorn backend.app.main:app
 │   ├── prod_main.py              # Production entry: uvicorn app.prod_main:app
-│   ├── api.py                    # Hackathon API routes (12 endpoints under /api)
-│   ├── api_v1/                   # Production API routes (21 endpoints under /api/v1)
+│   ├── api.py                    # Hackathon API routes
+│   ├── api_v1/                   # Production API routes, including /ml
 │   ├── models/                   # Hackathon SQLModel entities
 │   ├── prod_models/              # Production SQLAlchemy 2.0 models
 │   ├── core/
@@ -33,27 +33,22 @@ backend/
 │   │   ├── base.py               # SQLAlchemy Base with UUID PK + created_at
 │   │   └── session.py            # (Hackathon) SQLModel session
 │   ├── repositories/             # Generic CRUD + specialized repos
-│   │   ├── base.py               # BaseRepository<T> with list/get/create/update/delete
-│   │   ├── customer_repository.py
-│   │   ├── order_repository.py
-│   │   ├── return_repository.py
-│   │   ├── fraud_repository.py
-│   │   └── dashboard_repository.py
 │   ├── services/
 │   │   ├── import_service.py     # Chunked CSV import with auto-mapping
-│   │   ├── scoring_stub_service.py # 8 rule conditions + score persistence
+│   │   ├── scoring_stub_service.py # Rule scoring plus ML fallback
 │   │   ├── dashboard_service.py   # Cached dashboard aggregation
 │   │   ├── cache_service.py       # Redis TTL cache wrapper
 │   │   └── realtime_service.py    # Redis Stream + Pub/Sub helper
 │   ├── scripts/
-│   │   ├── seed_demo_data.py      # Demo merchant + 2 customers + 4 returns
+│   │   ├── seed_demo_data.py      # Demo merchant + customers + returns
 │   │   ├── import_kaggle_dataset.py # Bulk CSV import
-│   │   └── create_indexes.py      # 18 advanced database indexes
+│   │   └── create_indexes.py      # Advanced database indexes
 │   ├── workers/
 │   │   ├── realtime_worker.py     # Redis Stream consumer daemon
-│   │   └── import_worker.py       # CLI-driven CSV import
-│   ├── ml/                        # 5 ML model families
-│   ├── modules/                   # 20 production engine modules
+│   │   ├── import_worker.py       # CLI-driven CSV import
+│   │   └── ml_training_worker.py   # Async model retraining worker
+│   ├── ml/                        # Legacy ML model families and fusion engine
+│   ├── modules/                   # Production engine modules, including ml_engine
 │   └── rules/                     # Rule engine + default rules
 ├── alembic/                       # Schema migrations
 └── tests/                         # Pytest test suite
@@ -88,16 +83,19 @@ uvicorn app.prod_main:app --reload --port 8000
 
 # 6. Start the scoring worker (separate terminal)
 python -m app.workers.realtime_worker --consumer worker-1
+
+# 7. Train the supervised ML models
+python -m backend.app.modules.ml_engine.train_all
 ```
 
 ### Running Tests
 
 ```bash
-# Requires PostgreSQL with returnshield_test database
-pytest tests/ -v --cov=app
+# Root test suite, including ML tests and DB-backed checks
+pytest tests/ -v
 
-# Run specific test file
-pytest tests/test_scoring_stub.py -v
+# Run specific ML tests
+pytest tests/test_ml_feature_store.py tests/test_ml_registry.py tests/test_ml_selector.py tests/test_ml_training_run_model.py -v
 
 # Run with coverage report
 pytest tests/ --cov=app --cov-report=html
@@ -106,7 +104,7 @@ pytest tests/ --cov=app --cov-report=html
 ## Adding a New API Endpoint
 
 1. Add route handler in `backend/app/api_v1/<resource>.py`
-2. Add Pydantic schema in `backend/app/schemas/`
+2. Add Pydantic schema in `backend/app/modules/ml_engine/schemas.py` or `backend/app/schemas/`
 3. Add repository method in `backend/app/repositories/`
 4. Add service method in `backend/app/services/` (if needed)
 5. Register the router in `backend/app/api_v1/__init__.py`
@@ -123,17 +121,19 @@ pytest tests/ --cov=app --cov-report=html
 
 Edit `ScoringStubService.score_return()` in `backend/app/services/scoring_stub_service.py`.
 Each rule adds a condition check that contributes to the `rule_score`.
-Placeholder ML scores (`structured_ml_score`, `nlp_score`, `graph_score`, `anomaly_score`) are ready for engine integration.
+If the supervised model is unavailable, the scorer falls back to a warning-logged heuristic and still returns a response.
+
+## Adding a New ML Model
+
+1. Add a training script in `backend/app/modules/ml_engine/`
+2. Extend `MODEL_TYPES` in `train_all.py`
+3. Update the model registry metadata and selection logic if needed
+4. Add a test in `tests/`
+5. Persist artifacts to `backend/models/<model_type>/<version>/`
 
 ## Import Pipeline
 
-The import system (`ImportService`) auto-detects column mappings from 28+ known aliases:
-
-```python
-# Known patterns (examples)
-return_reason: return_reason_text, reason, return_reason, reasons, reason_for_return
-product_value: product_value, price, amount, item_price, unit_price
-```
+The import system (`ImportService`) auto-detects column mappings from 28+ known aliases.
 
 To add a new mapping, extend `COLUMN_MAP` in `import_service.py`.
 

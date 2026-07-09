@@ -7,12 +7,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 
-from app.core.database import get_async_session
-from app.core.redis import get_redis, RedisClient
-from backend.app.prod_models.fraud_case import FraudCase
-from backend.app.prod_models.fraud_score import FraudScore
-from app.repositories.fraud_repository import FraudCaseRepository
-from app.schemas.fraud_schema import FraudCaseRead, FraudCaseStatusUpdate
+from ..core.database import get_async_session
+from ..core.redis import get_redis, RedisClient
+from ..prod_models.fraud_case import FraudCase
+from ..prod_models.fraud_score import FraudScore
+from ..repositories.fraud_repository import FraudCaseRepository
+from ..schemas.fraud_schema import FraudCaseRead, FraudCaseStatusUpdate
 
 logger = logging.getLogger("returnshield.api.fraud_cases")
 router = APIRouter(prefix="/fraud-cases", tags=["Fraud Cases"])
@@ -105,7 +105,7 @@ async def update_case_status(
         raise HTTPException(status_code=404, detail="Fraud case not found")
 
     # Publish dashboard refresh
-    from app.services.realtime_service import RealtimeService
+    from ..services.realtime_service import RealtimeService
     realtime = RealtimeService(redis)
     await realtime.request_dashboard_refresh(case.merchant_id)
 

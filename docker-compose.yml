@@ -1,12 +1,10 @@
-version: "3.9"
-
 services:
   postgres:
     image: postgres:15-alpine
     container_name: returnshield-postgres
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "55433:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-returnshield}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-returnshield_secret}
@@ -41,7 +39,7 @@ services:
     container_name: returnshield-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "56380:6379"
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes --save 60 1000
@@ -65,7 +63,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       APP_ENV: production
       LOG_LEVEL: INFO
-      CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000","http://localhost:5173"]}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173}
     volumes:
       - ./data:/data:ro
     depends_on:

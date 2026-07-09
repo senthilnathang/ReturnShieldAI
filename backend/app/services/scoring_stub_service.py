@@ -17,8 +17,9 @@ from backend.app.prod_models.refund import Refund
 from backend.app.prod_models.fraud_score import FraudScore
 from backend.app.prod_models.fraud_case import FraudCase
 from backend.app.prod_models.support_interaction import SupportInteraction
-from app.core.config import settings
-from app.schemas.return_schema import ScoringResult
+from backend.app.modules.ml_engine.inference_service import MLInferenceService
+from ..core.config import settings
+from ..schemas.return_schema import ScoringResult
 
 logger = logging.getLogger("returnshield.scoring")
 
@@ -110,8 +111,21 @@ class ScoringStubService:
             score += 5
             reason_codes.append("New account")
 
-        # Finalize
-        final_score = min(100, max(0, score))
+        ml_service = MLInferenceService(self.session)
+        try:
+            ml_prediction = await ml_service.predict_return(return_id)
+            ml_score = int(ml_prediction.ml_score)
+            ml_probability = float(ml_prediction.fraud_probability)
+            if ml_prediction.fallback_used:
+                reason_codes.append("ML fallback heuristic")
+            else:
+                reason_codes.append(f"ML score {ml_score}")
+        except Exception as exc:
+            logger.warning("ML scoring unavailable for %s: %s", return_id, exc)
+            ml_probability = min(0.95, max(0.01, score / 100.0))
+            ml_score = int(round(ml_probability * 100))
+
+        final_score = min(100, max(0, round((score * 0.35) + (ml_score * 0.65))))
 
         if final_score < settings.default_risk_threshold_low:
             risk_level = "LOW"
@@ -124,7 +138,8 @@ class ScoringStubService:
             decision = "HOLD_REFUND_HIGH_RISK"
 
         return ScoringResult(
-            rule_score=final_score,
+            rule_score=score,
+            structured_ml_score=ml_score,
             final_score=final_score,
             risk_level=risk_level,
             decision=decision,
@@ -135,6 +150,8 @@ class ScoringStubService:
                 "weight_mismatch": min(20, 20 if shipment and shipment.weight_difference and abs(float(shipment.weight_difference)) > 0.2 else 0),
                 "quick_return": min(15, 15 if return_req.hours_after_delivery and float(return_req.hours_after_delivery) < 48 else 0),
                 "chargeback_risk": min(20, 20 if payment and payment.chargeback_flag else 0),
+                "ml_probability": round(ml_probability, 4),
+                "ml_score": ml_score,
             },
         )
 

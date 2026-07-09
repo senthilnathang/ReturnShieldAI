@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
-from typing import Any, List
 
 from pydantic_settings import BaseSettings
 
@@ -45,12 +43,11 @@ class Settings(BaseSettings):
         return os.getenv("REDIS_URL", f"redis://{self.redis_host}:{self.redis_port}/{self.redis_db}")
 
     # CORS
-    cors_origins: List[str] = [
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
-    ]
+    cors_origins: str = "http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173"
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [item.strip() for item in self.cors_origins.split(",") if item.strip()]
 
     @property
     def cors_origin_regex(self) -> str | None:

@@ -5,7 +5,7 @@ Create additional indexes for query optimization.
 Run after initial migration or after large data imports.
 
 Usage:
-    python scripts/create_indexes.py
+    python -m backend.app.scripts.create_indexes
 """
 
 import logging
@@ -14,8 +14,8 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from app.core.database import sync_engine
-from app.core.logging import setup_logging
+from ..core.database import sync_engine
+from ..core.logging import setup_logging
 from sqlalchemy import text
 
 logger = logging.getLogger("returnshield.scripts.create_indexes")

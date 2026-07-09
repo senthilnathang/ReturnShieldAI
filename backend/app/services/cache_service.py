@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
-from app.core.redis import RedisClient
+from ..core.redis import RedisClient
 
 logger = logging.getLogger("returnshield.cache")
 

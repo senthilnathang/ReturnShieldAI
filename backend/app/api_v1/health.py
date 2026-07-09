@@ -6,9 +6,9 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 
-from app.core.database import get_async_session
-from app.core.redis import get_redis, RedisClient
-from app.schemas.dashboard_schema import HealthResponse
+from ..core.database import get_async_session
+from ..core.redis import get_redis, RedisClient
+from ..schemas.dashboard_schema import HealthResponse
 
 logger = logging.getLogger("returnshield.api.health")
 router = APIRouter(tags=["Health"])

@@ -1,15 +1,15 @@
 # ReturnShield AI
 
-ReturnShield AI is a shipment return fraud decisioning platform for e-commerce and retail teams. It scores each return request, explains why it was flagged, and stores analyst feedback for follow-up review and retraining.
+ReturnShield AI is a shipment return fraud decisioning platform for e-commerce and retail teams. It scores each return request, explains why it was flagged, trains supervised fraud models from PostgreSQL data, and stores analyst feedback for follow-up review and retraining.
 
 The project has two parallel codebases:
-- **Hackathon MVP** — lightweight system using SQLModel + SQLite, runs locally via `run.sh`
-- **Production Foundation** — PostgreSQL 15 + Redis 7 + FastAPI + SQLAlchemy 2.0 async, runs via Docker Compose
+- **Hackathon MVP** - lightweight system using SQLModel + SQLite, runs locally via `run.sh`
+- **Production Foundation** - PostgreSQL 15 + Redis 7 + FastAPI + SQLAlchemy 2.0 async, runs via Docker Compose
 
 ## Product Flow
 
 ```
-Return request → normalization → rules → structured ML → NLP → anomaly detection → graph features → fusion score → case creation → analyst decision → feedback
+Return request -> normalization -> rules -> supervised ML -> NLP -> anomaly detection -> graph features -> fusion score -> case creation -> analyst decision -> feedback
 ```
 
 ## What The System Does
@@ -19,7 +19,7 @@ Return request → normalization → rules → structured ML → NLP → anomaly
 - generates reason codes and a human explanation
 - stores cases, analyst actions, and feedback labels
 - exposes a rules page for simple JSON-backed business controls
-- shows fraud ring, NLP, anomaly, and investigator signals in the UI
+- shows fraud ring, NLP, anomaly, investigator, and ML model signals in the UI
 
 ## Tech Stack
 
@@ -27,12 +27,12 @@ Return request → normalization → rules → structured ML → NLP → anomaly
 |-------|--------------|----------------------|
 | **Backend** | FastAPI + SQLModel | FastAPI + SQLAlchemy 2.0 async |
 | **Database** | SQLite (file) | PostgreSQL 15+ (async via asyncpg) |
-| **Cache/Queue** | — | Redis 7+ (streams, pub/sub, cache) |
-| **ML** | scikit-learn (5 families) | Same + Pandas (import pipeline) |
-| **Migrations** | — | Alembic |
+| **Cache/Queue** | - | Redis 7+ (streams, pub/sub, cache) |
+| **ML** | scikit-learn (5 families) | Logistic Regression, Random Forest, XGBoost, Neural Net, Pandas |
+| **Migrations** | - | Alembic |
 | **Frontend** | React + TypeScript + Vite + Tailwind CSS | Same |
 | **Deployment** | `run.sh` dev mode | Docker Compose (3 services) |
-| **Workers** | — | Redis Stream consumer + CLI import worker |
+| **Workers** | - | Redis Stream consumer + CLI import worker |
 
 ## Project Layout
 
@@ -42,13 +42,13 @@ Return request → normalization → rules → structured ML → NLP → anomaly
 │   │   ├── main.py           # Hackathon MVP entry point
 │   │   ├── prod_main.py      # Production Foundation entry point
 │   │   ├── api.py            # Hackathon MVP API routes
-│   │   ├── api_v1/           # Production API v1 routes (21 endpoints)
-│   │   ├── models/           # Hackathon MVP SQLModel entities (8 tables)
-│   │   ├── prod_models/      # Production SQLAlchemy models (16 tables)
+│   │   ├── api_v1/           # Production API v1 routes
+│   │   ├── models/           # Hackathon MVP SQLModel entities
+│   │   ├── prod_models/      # Production SQLAlchemy models (17 tables)
 │   │   ├── core/             # Config, database, redis, logging
 │   │   ├── db/               # Base, session, migrations
-│   │   ├── ml/               # ML pipeline (5 families)
-│   │   ├── modules/          # 20 production engine modules
+│   │   ├── ml/               # Legacy ML pipeline
+│   │   ├── modules/          # Production engine modules, including ml_engine
 │   │   ├── repositories/     # Data access layer
 │   │   ├── schemas/          # Pydantic v2 schemas
 │   │   ├── services/         # Business logic services
@@ -59,7 +59,7 @@ Return request → normalization → rules → structured ML → NLP → anomaly
 │   ├── Dockerfile
 │   └── README.md
 ├── frontend/                 # React analyst dashboard
-├── docs/                     # Documentation
+├── docs/                     # Documentation and presentation assets
 ├── sample_data/              # Synthetic demo corpus
 ├── docker-compose.yml        # Production stack
 ├── pitch_deck_data.md        # Investor pitch content
@@ -67,7 +67,7 @@ Return request → normalization → rules → structured ML → NLP → anomaly
 └── pitch_deck_returnshield.pdf
 ```
 
-## Quick Start — Hackathon MVP
+## Quick Start - Hackathon MVP
 
 ### 1. Install dependencies
 ```bash
@@ -92,7 +92,7 @@ Return request → normalization → rules → structured ML → NLP → anomaly
 ./run.sh test all
 ```
 
-## Quick Start — Production Foundation
+## Quick Start - Production Foundation
 
 ### 1. Start infrastructure
 ```bash
@@ -163,7 +163,7 @@ Open `http://localhost:8000/docs`
 | GET | `/returns` | List returns (paginated) |
 | GET | `/returns/{return_id}` | Return details |
 | POST | `/returns/{return_id}/enqueue-score` | Enqueue async scoring |
-| POST | `/returns/{return_id}/score-stub` | Score synchronously (stub) |
+| POST | `/returns/{return_id}/score-stub` | Score synchronously with fallback rule+ML scoring |
 
 #### Fraud Cases
 | Method | Endpoint | Description |
@@ -187,12 +187,23 @@ Open `http://localhost:8000/docs`
 | GET | `/orders/{order_id}` | Order detail |
 | GET | `/orders` | List orders |
 
+#### ML Engine
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/ml/predict` | Predict fraud probability for a return |
+| POST | `/ml/predict/batch` | Predict fraud probability for many returns |
+| POST | `/ml/train` | Train and compare supervised models |
+| GET | `/ml/models` | List trained model artifacts |
+| GET | `/ml/models/best` | Show the best promoted model |
+| GET | `/ml/training-runs` | List training history from PostgreSQL |
+| POST | `/ml/models/{model_type}/{version}/promote` | Promote an artifact to best |
+
 ## Database Schema
 
 ### Hackathon MVP (8 tables)
 `customers`, `orders`, `returns`, `return_cases`, `fraud_scores`, `rules`, `analyst_feedback`, `model_training_runs`
 
-### Production Foundation (16 tables)
+### Production Foundation (17 tables)
 
 ```
 merchants ──┬── customers ──┬── customer_identities
@@ -205,7 +216,7 @@ merchants ──┬── customers ──┬── customer_identities
             │               └── fraud_scores ──── fraud_cases
             ├── rules
             ├── analyst_feedback
-            └── import_jobs / audit_events
+            └── import_jobs / audit_events / model_training_runs
 ```
 
 ## Scoring Logic
@@ -213,11 +224,20 @@ merchants ──┬── customers ──┬── customer_identities
 Fusion formula:
 ```
 final_score =
-  (rule_score * 0.30)
-+ (structured_ml_score * 0.30)
-+ (nlp_score * 0.25)
-+ (anomaly_score * 0.15)
+  (rule_score * 0.35)
++ (structured_ml_score * 0.65)
 ```
+
+When the promoted supervised model exists, the production scorer uses it; otherwise it falls back to the rule stub and still returns a complete API response.
+
+## ML Training
+
+- Train and compare multiple supervised models from PostgreSQL
+- Algorithms: Logistic Regression, Random Forest, XGBoost, Neural Network
+- Rank by PR-AUC first, then F1, then false positive rate
+- Persist artifacts under `backend/models/`
+- Promote the best model automatically into `backend/models/best_model/`
+- Expose prediction, training, registry, and promotion APIs under `/api/v1/ml`
 
 Decision bands:
 - `0-39` = `AUTO_APPROVE`
@@ -227,9 +247,9 @@ Decision bands:
 ## Real-Time Scoring Flow (Production)
 
 ```
-Return Created → PostgreSQL → Redis Stream → Worker consumes →
-    Scoring Stub → FraudScore + FraudCase created →
-    Redis Pub/Sub → Dashboard refreshes
+Return Created -> PostgreSQL -> Redis Stream -> Worker consumes ->
+    Scoring Stub -> FraudScore + FraudCase created ->
+    Redis Pub/Sub -> Dashboard refreshes
 ```
 
 ### Redis Architecture
@@ -243,6 +263,7 @@ Return Created → PostgreSQL → Redis Stream → Worker consumes →
 
 ## ML Modules
 
+- `backend/app/modules/ml_engine/`
 - `backend/app/ml/feature_engineering.py`
 - `backend/app/ml/structured_model.py`
 - `backend/app/ml/nlp_model.py`
@@ -251,43 +272,3 @@ Return Created → PostgreSQL → Redis Stream → Worker consumes →
 - `backend/app/ml/explainability.py`
 - `backend/app/ml/train.py`
 - `backend/app/ml/sample_data_generator.py`
-- `backend/app/ml/advanced_signals.py`
-- `backend/app/ml/graph_features.py`
-
-## 20 Production Engine Modules
-
-`alert_engine`, `anomaly_engine`, `decision_engine`, `evidence_engine`, `feature_engine`, `fusion_engine`, `graph_engine`, `investigation_engine`, `kaggle_import`, `merchant_engine`, `monitoring_engine`, `nlp_engine`, `rule_engine`, `structured_ml`, `timeline_engine`, `vector_engine` (FAISS + Qdrant)
-
-## UI Pages
-
-- Overview dashboard (with cached metrics)
-- Case queue (paginated, filterable)
-- Case detail and evidence panel
-- Decision engine view
-- AI / ML enhancements page
-- Rules page
-- Feedback page
-
-## Design Notes
-
-- simple weighted fusion instead of a heavy orchestration engine
-- explainable output instead of opaque risk numbers
-- seeded synthetic data instead of requiring a historical fraud dataset
-- analyst feedback stored for future retraining
-- PostgreSQL + Redis for production; SQLite for local dev
-- Alembic migrations for schema versioning
-- Real-time scoring via Redis Stream consumer groups
-- Background workers for CSV import and async scoring
-
-## Next Improvements
-
-- stronger NLP embeddings (sentence-transformers)
-- persisted model artifacts with versioning
-- merchant-specific thresholds
-- alerting and export workflows (Slack, email, webhook)
-- graph visualizations for fraud rings
-- stronger evidence drill-down charts
-- LLM investigation assistant
-- image verification (OCR + photo similarity)
-- SHAP explainability integration
-- Multi-tenancy with full isolation

@@ -7,7 +7,7 @@ from uuid import UUID
 from sqlalchemy import select, func, delete as sa_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.base import Base
+from ..db.base import Base
 
 ModelType = TypeVar("ModelType", bound=Base)
 logger = logging.getLogger("returnshield.repository")

@@ -43,8 +43,8 @@ def do_run_migrations(connection: Connection) -> None:
 async def run_async_migrations() -> None:
     cfg = config.get_section(config.config_ini_section, {})
     cfg["sqlalchemy.url"] = os.getenv(
-        "DATABASE_URL_SYNC",
-        "postgresql://returnshield:returnshield_secret@localhost:5432/returnshield",
+        "DATABASE_URL",
+        "postgresql+asyncpg://returnshield:returnshield_secret@localhost:5432/returnshield",
     )
     connectable = async_engine_from_config(
         cfg,

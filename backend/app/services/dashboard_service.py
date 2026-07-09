@@ -6,9 +6,9 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.redis import RedisClient
-from app.repositories.dashboard_repository import DashboardRepository
-from app.services.cache_service import CacheService
+from ..core.redis import RedisClient
+from ..repositories.dashboard_repository import DashboardRepository
+from .cache_service import CacheService
 
 logger = logging.getLogger("returnshield.dashboard")
 

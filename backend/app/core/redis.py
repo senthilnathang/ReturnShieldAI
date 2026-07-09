@@ -5,7 +5,7 @@ from typing import Any, Optional
 
 import redis.asyncio as aioredis
 
-from app.core.config import settings
+from .config import settings
 
 
 class RedisClient:

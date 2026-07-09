@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import os
+import sys
+from pathlib import Path
 from typing import AsyncGenerator, Generator
 from uuid import uuid4
 
@@ -11,8 +13,14 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.db.base import Base
-from app.core.config import settings
+ROOT = Path(__file__).resolve().parents[1]
+BACKEND_DIR = ROOT / "backend"
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
+
+from backend.app.db.base import Base
+from backend.app.core.config import settings
+from backend.app.prod_models.model_training_run import ModelTrainingRun  # noqa: F401
 
 # Use test database
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL", "postgresql://returnshield:returnshield_secret@localhost:5432/returnshield_test")

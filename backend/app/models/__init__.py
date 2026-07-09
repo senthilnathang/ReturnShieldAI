@@ -1,19 +1,27 @@
-from backend.app.models.customer import Customer
-from backend.app.models.order import Order
-from backend.app.models.return_record import ReturnRecord
-from backend.app.models.return_case import ReturnCase
-from backend.app.models.fraud_score import FraudScore
-from backend.app.models.rule import Rule
-from backend.app.models.analyst_feedback import AnalystFeedback
-from backend.app.models.model_training_run import ModelTrainingRun
+from .customer import Customer, CustomerBase, CustomerRead
+from .order import Order, OrderBase
+from .return_record import ReturnRecord, ReturnRecordBase
+from .return_case import ReturnCase, ReturnCaseBase
+from .fraud_score import FraudScore, FraudScoreBase
+from .rule import Rule, RuleBase
+from .analyst_feedback import AnalystFeedback, AnalystFeedbackBase
+from .model_training_run import ModelTrainingRun
 
 __all__ = [
     "Customer",
+    "CustomerBase",
+    "CustomerRead",
     "Order",
+    "OrderBase",
     "ReturnRecord",
+    "ReturnRecordBase",
     "ReturnCase",
+    "ReturnCaseBase",
     "FraudScore",
+    "FraudScoreBase",
     "Rule",
+    "RuleBase",
     "AnalystFeedback",
+    "AnalystFeedbackBase",
     "ModelTrainingRun",
 ]

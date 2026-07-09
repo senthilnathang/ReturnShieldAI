@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ReturnShield AI - Slideshow</title>
+<style>
+  :root {
+    --bg: #f7fbff;
+    --bg-2: #eaf3ff;
+    --panel: rgba(255, 255, 255, 0.92);
+    --line: rgba(15, 76, 92, 0.12);
+    --text: #10263f;
+    --muted: #5f738b;
+    --accent: #0f67d1;
+    --accent-2: #46a0ff;
+    --good: #1f8a60;
+    --warn: #c98a18;
+    --bad: #d14b4b;
+    --shadow: 0 24px 70px rgba(19, 58, 112, 0.12);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    overflow: hidden;
+    color: var(--text);
+    background:
+      radial-gradient(circle at 15% 15%, rgba(70, 160, 255, 0.14), transparent 26%),
+      radial-gradient(circle at 82% 18%, rgba(15, 103, 209, 0.08), transparent 24%),
+      radial-gradient(circle at 50% 100%, rgba(94, 185, 255, 0.10), transparent 24%),
+      linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  }
+
+  .deck {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+  }
+
+  .deck::before,
+  .deck::after {
+    content: "";
+    position: fixed;
+    inset: auto;
+    pointer-events: none;
+  }
+
+  .deck::before {
+    top: -18vh;
+    right: -10vw;
+    width: 58vw;
+    height: 72vh;
+    background: radial-gradient(ellipse, rgba(70, 160, 255, 0.14) 0%, transparent 70%);
+    filter: blur(6px);
+  }
+
+  .deck::after {
+    bottom: -20vh;
+    left: -12vw;
+    width: 52vw;
+    height: 62vh;
+    background: radial-gradient(ellipse, rgba(15, 103, 209, 0.08) 0%, transparent 70%);
+    filter: blur(8px);
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: 24px;
+    padding: 48px 64px 34px;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(28px) scale(0.985);
+    transition: opacity 240ms ease, transform 320ms ease;
+  }
+
+  .slide.active {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(0) scale(1);
+  }
+
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 24px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .mark {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    background: linear-gradient(145deg, #0f67d1, #46a0ff 70%);
+    position: relative;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.42), 0 10px 24px rgba(15, 103, 209, 0.18);
+  }
+
+  .mark::before,
+  .mark::after {
+    content: "";
+    position: absolute;
+    inset: 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.74);
+  }
+
+  .brand-copy { display: grid; gap: 3px; }
+  .brand-name {
+    font: 700 0.96rem/1.1 "Trebuchet MS", "Segoe UI", sans-serif;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .brand-sub { font-size: 0.86rem; color: var(--muted); }
+
+  .slide-index {
+    font: 700 0.75rem/1.2 "Trebuchet MS", "Segoe UI", sans-serif;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(16, 38, 63, 0.45);
+  }
+
+  .content {
+    align-self: center;
+    max-width: 1320px;
+    width: 100%;
+    margin: 0 auto;
+    display: grid;
+    gap: 24px;
+  }
+
+  h1, h2, h3, h4 {
+    margin: 0;
+    line-height: 0.98;
+    letter-spacing: -0.03em;
+  }
+
+  h1 {
+    font-size: clamp(3.4rem, 7.4vw, 6.6rem);
+    max-width: 10ch;
+    background: linear-gradient(135deg, #0f2f63 0%, #0f67d1 58%, #46a0ff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  h2 {
+    font-size: clamp(2.3rem, 4.4vw, 3.4rem);
+    max-width: 14ch;
+  }
+
+  h3 {
+    font: 700 0.95rem/1.2 "Trebuchet MS", "Segoe UI", sans-serif;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  p {
+    margin: 0;
+    color: #40546f;
+    font-size: 1.08rem;
+    max-width: 58ch;
+  }
+
+  .lead {
+    font-size: 1.28rem;
+    line-height: 1.72;
+    color: #213852;
+    max-width: 48ch;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.46rem 0.82rem;
+    border-radius: 999px;
+    border: 1px solid rgba(15, 103, 209, 0.16);
+    background: rgba(15, 103, 209, 0.08);
+    color: var(--accent);
+    font: 700 0.72rem/1.2 "Trebuchet MS", "Segoe UI", sans-serif;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .grid {
+    display: grid;
+    gap: 18px;
+  }
+  .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+  .card {
+    padding: 24px 24px 22px;
+    border-radius: 22px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(14px);
+  }
+
+  .card h4 {
+    font: 700 1rem/1.2 "Trebuchet MS", "Segoe UI", sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 9px;
+  }
+
+  .card p {
+    font-size: 1rem;
+    color: #55697f;
+  }
+
+  .hero {
+    display: grid;
+    grid-template-columns: 1.06fr 0.94fr;
+    gap: 28px;
+    align-items: end;
+  }
+
+  .hero-panel {
+    display: grid;
+    gap: 14px;
+  }
+
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .metric {
+    padding: 18px 16px 16px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.92);
+    border: 1px solid rgba(15, 76, 92, 0.10);
+    box-shadow: 0 10px 24px rgba(16, 38, 63, 0.06);
+  }
+
+  .metric strong {
+    display: block;
+    font: 700 clamp(1.2rem, 2.2vw, 2rem)/1 "Baskerville", Georgia, serif;
+    color: #0f2f63;
+  }
+
+  .metric span {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.8rem;
+    color: var(--muted);
+    font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .table-wrap {
+    border-radius: 22px;
+    border: 1px solid var(--line);
+    overflow: hidden;
+    background: rgba(255,255,255,0.96);
+    box-shadow: var(--shadow);
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+  th, td {
+    padding: 15px 16px;
+    border-bottom: 1px solid rgba(15, 76, 92, 0.08);
+    vertical-align: top;
+    text-align: left;
+  }
+  th {
+    font: 700 0.72rem/1.2 "Trebuchet MS", "Segoe UI", sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    background: rgba(15, 103, 209, 0.05);
+  }
+  td { color: #40546f; font-size: 0.98rem; }
+
+  .band {
+    display: grid;
+    grid-template-columns: 94px 152px 1fr;
+    gap: 12px;
+    align-items: center;
+    padding: 14px 16px;
+    border-radius: 18px;
+    background: rgba(255,255,255,0.95);
+    border: 1px solid rgba(15, 76, 92, 0.10);
+  }
+
+  .band .score {
+    font: 700 0.82rem/1.1 "Trebuchet MS", "Segoe UI", sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+  }
+  .band .decision {
+    font: 700 0.88rem/1.1 "Trebuchet MS", "Segoe UI", sans-serif;
+    letter-spacing: 0.02em;
+    color: var(--text);
+  }
+  .band .detail { color: #5f738b; font-size: 0.92rem; }
+
+  .quote {
+    padding: 20px 22px;
+    border-left: 4px solid var(--accent);
+    background: rgba(15, 103, 209, 0.08);
+    font-size: 1rem;
+    line-height: 1.72;
+    color: #24415f;
+  }
+
+  .flow {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .flow-step {
+    padding: 11px 15px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.95);
+    border: 1px solid rgba(15, 76, 92, 0.10);
+    font: 700 0.76rem/1.2 "Trebuchet MS", "Segoe UI", sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #23405f;
+  }
+
+  .flow-arrow { color: rgba(16, 38, 63, 0.28); font-size: 1.15rem; }
+
+  .chart { display: grid; gap: 12px; }
+  .bar-row {
+    display: grid;
+    grid-template-columns: 132px 1fr 48px;
+    gap: 10px;
+    align-items: center;
+  }
+  .bar-label {
+    font: 700 0.72rem/1.2 "Trebuchet MS", "Segoe UI", sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+  }
+  .bar-track {
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(15, 103, 209, 0.08);
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  }
+  .bar-value {
+    text-align: right;
+    font: 700 0.82rem/1.1 "Trebuchet MS", "Segoe UI", sans-serif;
+    color: #0f2f63;
+  }
+
+  .nav {
+    position: fixed;
+    left: 18px;
+    right: 18px;
+    bottom: 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    z-index: 50;
+    pointer-events: none;
+  }
+
+  .nav-group { display: flex; gap: 10px; pointer-events: auto; }
+
+  .nav-btn {
+    appearance: none;
+    border: 1px solid rgba(15, 103, 209, 0.16);
+    background: rgba(255,255,255,0.92);
+    color: var(--text);
+    border-radius: 999px;
+    padding: 12px 16px;
+    font: 700 0.78rem/1.2 "Trebuchet MS", "Segoe UI", sans-serif;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+  }
+  .nav-btn:hover { border-color: rgba(15,103,209,0.45); background: #ffffff; }
+  .nav-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .dots {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+  }
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(15, 103, 209, 0.18);
+    background: rgba(15, 103, 209, 0.12);
+    cursor: pointer;
+  }
+  .dot.active {
+    width: 24px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    border-color: transparent;
+  }
+
+  .progress {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 4px;
+    background: rgba(15, 103, 209, 0.10);
+    z-index: 49;
+  }
+  .progress > div {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    transition: width 220ms ease;
+  }
+
+  .hint {
+    position: fixed;
+    top: 18px;
+    right: 18px;
+    font: 700 0.7rem/1.2 "Trebuchet MS", "Segoe UI", sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: rgba(16, 38, 63, 0.5);
+    z-index: 40;
+  }
+
+  .small { font-size: 0.92rem; color: #667a92; }
+
+  .two-col-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+
+  .visual-card {
+    padding: 18px 18px 16px;
+    border-radius: 24px;
+    background: linear-gradient(180deg, #ffffff 0%, #f6faff 100%);
+    border: 1px solid rgba(15, 103, 209, 0.14);
+    box-shadow: 0 18px 42px rgba(19, 58, 112, 0.10);
+  }
+
+  .visual-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .visual-title strong {
+    font: 700 0.95rem/1.2 "Trebuchet MS", "Segoe UI", sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #0f2f63;
+  }
+
+  .visual-title span {
+    font: 700 0.7rem/1.2 "Trebuchet MS", "Segoe UI", sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+  }
+
+  .viz {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .viz text {
+    font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+  }
+
+  .mini-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .mini-metric {
+    padding: 12px 12px 11px;
+    border-radius: 16px;
+    background: #eff6ff;
+    border: 1px solid #dbeafe;
+  }
+
+  .mini-metric strong {
+    display: block;
+    font: 700 1.18rem/1 "Baskerville", Georgia, serif;
+    color: #0f2f63;
+  }
+
+  .mini-metric span {
+    display: block;
+    margin-top: 4px;
+    font: 700 0.7rem/1.2 "Trebuchet MS", "Segoe UI", sans-serif;
+    color: #5f738b;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .signal-legend {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .signal-pill {
+    padding: 10px 10px 9px;
+    border-radius: 14px;
+    background: #eef6ff;
+    border: 1px solid #dbeafe;
+    text-align: center;
+  }
+
+  .signal-pill strong {
+    display: block;
+    font: 700 1rem/1 "Baskerville", Georgia, serif;
+    color: #0f2f63;
+  }
+
+  .signal-pill span {
+    display: block;
+    margin-top: 3px;
+    font: 700 0.68rem/1.2 "Trebuchet MS", "Segoe UI", sans-serif;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #5f738b;
+  }
+
+  @media (max-width: 1100px) {
+    .slide { padding: 24px 20px 84px; }
+    .hero, .grid-2, .grid-3, .grid-4, .metrics, .two-col-list { grid-template-columns: 1fr; }
+    .band { grid-template-columns: 82px 1fr; }
+    .band .detail { grid-column: 1 / -1; }
+    .bar-row { grid-template-columns: 96px 1fr 36px; }
+    .nav { left: 10px; right: 10px; bottom: 10px; flex-direction: column; align-items: stretch; }
+    .nav-group { justify-content: space-between; }
+    .dots { justify-content: center; }
+  }
+
+  @media print {
+    @page { size: landscape; margin: 0; }
+    body { overflow: visible; background: white; color: #111827; }
+    .deck, .slide { position: static; width: auto; height: auto; }
+    .slide {
+      min-height: 100vh;
+      page-break-after: always;
+      break-after: page;
+      opacity: 1 !important;
+      pointer-events: auto !important;
+      transform: none !important;
+      padding: 26px 30px;
+      background: white;
+    }
+    .nav, .progress, .hint, .deck::before, .deck::after { display: none !important; }
+    h1, h2, h3, h4, p, td { color: #111827 !important; }
+    .card, .visual-card, .table-wrap, .metric, .band, .flow-step { box-shadow: none !important; background: #f8fbff !important; border-color: #dbeafe !important; }
+    .card p, .lead, .small, td, .band .detail { color: #475569 !important; }
+    .badge { color: #0f67d1 !important; background: #eff6ff !important; border-color: #bfdbfe !important; }
+    .metric strong, h1 { -webkit-text-fill-color: #0f2f63 !important; color: #0f2f63 !important; background: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+  <div class="hint">Use left/right arrows or buttons</div>
+
+  <section class="slide active" data-title="Cover">
+    <div class="topbar">
+      <div class="brand">
+        <div class="mark" aria-hidden="true"></div>
+        <div class="brand-copy">
+          <div class="brand-name">ReturnShield AI</div>
+          <div class="brand-sub">Return fraud decisioning for modern commerce</div>
+        </div>
+      </div>
+      <div class="slide-index">01 / 06</div>
+    </div>
+    <div class="content hero">
+      <div>
+        <div class="badge">Purpose-built for post-purchase risk</div>
+        <h1>Stop return fraud before it becomes refund loss.</h1>
+        <p class="lead" style="margin-top: 16px;">
+          Score every return request, explain the decision, and block risky refunds before cash leaves the system.
+        </p>
+        <p style="margin-top: 14px; max-width: 50ch;">
+          Built for the fraud surface checkout tools miss: empty-box claims, wardrobing, item swaps, fraud rings,
+          and suspicious return narratives.
+        </p>
+      </div>
+      <div class="hero-panel">
+        <div class="metrics">
+          <div class="metric"><strong>0-100</strong><span>risk score</span></div>
+          <div class="metric"><strong>3</strong><span>decision bands</span></div>
+          <div class="metric"><strong>Explain</strong><span>reason trace</span></div>
+          <div class="metric"><strong>Live</strong><span>API scoring</span></div>
+        </div>
+        <div class="card">
+          <h4>Why it matters</h4>
+          <p>Return fraud happens after checkout, when payment fraud tools stop watching. ReturnShield AI makes the refund moment the decision point.</p>
+        </div>
+      <div class="visual-card">
+      <div class="visual-title"><strong>System footprint</strong><span>real repo counts</span></div>
+      <svg class="viz" viewBox="0 0 360 210" role="img" aria-label="ReturnShield AI system footprint">
+        <defs>
+          <linearGradient id="coverGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#0f67d1" />
+            <stop offset="100%" stop-color="#46a0ff" />
+          </linearGradient>
+        </defs>
+        <circle cx="180" cy="96" r="64" fill="#eff6ff" stroke="#bfdbfe" stroke-width="2" />
+        <circle cx="180" cy="96" r="38" fill="url(#coverGrad)" opacity="0.12" />
+        <text x="180" y="89" text-anchor="middle" font-size="30" font-weight="700" fill="#0f2f63">16</text>
+        <text x="180" y="109" text-anchor="middle" font-size="12" fill="#5f738b">normalized tables</text>
+        <g>
+          <rect x="26" y="30" rx="14" ry="14" width="112" height="50" fill="#eef6ff" stroke="#dbeafe" />
+          <text x="82" y="52" text-anchor="middle" font-size="24" font-weight="700" fill="#0f2f63">21</text>
+          <text x="82" y="68" text-anchor="middle" font-size="11" fill="#5f738b">API endpoints</text>
+        </g>
+        <g>
+          <rect x="222" y="30" rx="14" ry="14" width="112" height="50" fill="#eef6ff" stroke="#dbeafe" />
+          <text x="278" y="52" text-anchor="middle" font-size="24" font-weight="700" fill="#0f2f63">20</text>
+          <text x="278" y="68" text-anchor="middle" font-size="11" fill="#5f738b">modular engines</text>
+        </g>
+        <g>
+          <rect x="26" y="132" rx="14" ry="14" width="112" height="50" fill="#eef6ff" stroke="#dbeafe" />
+          <text x="82" y="154" text-anchor="middle" font-size="24" font-weight="700" fill="#0f2f63">100+</text>
+          <text x="82" y="170" text-anchor="middle" font-size="11" fill="#5f738b">synthetic records</text>
+        </g>
+        <g>
+          <rect x="222" y="132" rx="14" ry="14" width="112" height="50" fill="#eef6ff" stroke="#dbeafe" />
+          <text x="278" y="154" text-anchor="middle" font-size="24" font-weight="700" fill="#0f2f63">8</text>
+          <text x="278" y="170" text-anchor="middle" font-size="11" fill="#5f738b">rule conditions</text>
+        </g>
+      </svg>
+      <div class="mini-metrics">
+        <div class="mini-metric"><strong>5</strong><span>model families</span></div>
+        <div class="mini-metric"><strong>3</strong><span>decision bands</span></div>
+        <div class="mini-metric"><strong>28+</strong><span>CSV aliases</span></div>
+        <div class="mini-metric"><strong>9</strong><span>fraud patterns</span></div>
+      </div>
+    </div>
+    </div>
+    <div class="small">ReturnShield AI · product presentation</div>
+  </section>
+
+  <section class="slide" data-title="Problem">
+    <div class="topbar">
+      <div class="brand"><div class="mark" aria-hidden="true"></div><div class="brand-copy"><div class="brand-name">ReturnShield AI</div><div class="brand-sub">The blind spot is post-purchase</div></div></div>
+      <div class="slide-index">02 / 06</div>
+    </div>
+    <div class="content">
+      <div class="badge">The problem</div>
+      <h2>Legacy fraud stacks miss the returns layer.</h2>
+      <div class="grid grid-2" style="align-items: start;">
+        <div class="card">
+          <h4>The gap</h4>
+          <p>Checkout fraud systems are optimized for cards and chargebacks. Returns include shipping, text, images, and account behavior those systems do not fully inspect.</p>
+        </div>
+        <div class="card">
+          <h4>What attackers exploit</h4>
+          <p>Empty-box claims, weight fraud, wardrobing, price arbitrage, fake narratives, and organized account rings.</p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Dimension</th><th>Payment fraud</th><th>Return fraud</th></tr>
+          <tr><td>Detection point</td><td>Checkout</td><td>Post-fulfillment</td></tr>
+          <tr><td>Signals</td><td>~50 features</td><td>200+ features across order, text, graph, images</td></tr>
+          <tr><td>Attack surface</td><td>Card details</td><td>Physical goods, labels, weight, chat, photos</td></tr>
+          <tr><td>Existing coverage</td><td>Strong</td><td>Near zero</td></tr>
+        </table>
+      <div class="visual-card">
+      <div class="visual-title"><strong>Surface area</strong><span>what the system really sees</span></div>
+      <svg class="viz" viewBox="0 0 360 210" role="img" aria-label="Platform surface area bar chart">
+        <defs>
+          <linearGradient id="surfaceGrad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#0f67d1" />
+            <stop offset="100%" stop-color="#46a0ff" />
+          </linearGradient>
+        </defs>
+        <text x="12" y="28" class="viz-muted" font-size="12">Counts from the codebase and docs</text>
+        <g transform="translate(12,44)">
+          <text x="0" y="16" class="viz-label" font-size="13">Normalized tables</text>
+          <rect x="120" y="4" width="190" height="16" rx="8" class="bar-bg" />
+          <rect x="120" y="4" width="138" height="16" rx="8" fill="url(#surfaceGrad)" />
+          <text x="322" y="17" fill="#0f2f63" font-size="13" font-weight="700">16</text>
+        </g>
+        <g transform="translate(12,82)">
+          <text x="0" y="16" class="viz-label" font-size="13">API endpoints</text>
+          <rect x="120" y="4" width="190" height="16" rx="8" class="bar-bg" />
+          <rect x="120" y="4" width="181" height="16" rx="8" fill="url(#surfaceGrad)" />
+          <text x="322" y="17" fill="#0f2f63" font-size="13" font-weight="700">21</text>
+        </g>
+        <g transform="translate(12,120)">
+          <text x="0" y="16" class="viz-label" font-size="13">CSV aliases</text>
+          <rect x="120" y="4" width="190" height="16" rx="8" class="bar-bg" />
+          <rect x="120" y="4" width="190" height="16" rx="8" fill="url(#surfaceGrad)" />
+          <text x="322" y="17" fill="#0f2f63" font-size="13" font-weight="700">28+</text>
+        </g>
+        <g transform="translate(12,158)">
+          <text x="0" y="16" class="viz-label" font-size="13">Fraud patterns</text>
+          <rect x="120" y="4" width="190" height="16" rx="8" class="bar-bg" />
+          <rect x="120" y="4" width="78" height="16" rx="8" fill="url(#surfaceGrad)" />
+          <text x="322" y="17" fill="#0f2f63" font-size="13" font-weight="700">9</text>
+        </g>
+      </svg>
+    </div>
+    </div>
+    <div class="small">Problem framing · why the product exists</div>
+  </section>
+
+  <section class="slide" data-title="Product">
+    <div class="topbar">
+      <div class="brand"><div class="mark" aria-hidden="true"></div><div class="brand-copy"><div class="brand-name">ReturnShield AI</div><div class="brand-sub">Operational fraud console</div></div></div>
+      <div class="slide-index">03 / 06</div>
+    </div>
+    <div class="content">
+      <div class="badge">Product features</div>
+      <h2>One workflow from scoring to analyst action.</h2>
+      <div class="grid grid-3">
+        <div class="card"><h4>Return scoring</h4><p>Scores every return before the refund is released.</p></div>
+        <div class="card"><h4>Explainability</h4><p>Shows why a request was flagged in plain language.</p></div>
+        <div class="card"><h4>Case review</h4><p>Routes medium and high-risk returns to analysts.</p></div>
+        <div class="card"><h4>Feedback loop</h4><p>Stores analyst decisions for retraining and follow-up.</p></div>
+        <div class="card"><h4>Fraud ring visibility</h4><p>Surfaces connected accounts and repeat behavior.</p></div>
+        <div class="card"><h4>Reason codes</h4><p>Turns score output into actions the team can trust.</p></div>
+      </div>
+      <div class="two-col-list">
+        <div class="card">
+          <h4>Decision bands</h4>
+          <div style="margin-top: 12px; display: grid; gap: 10px;">
+            <div class="band"><div class="score">0-39</div><div class="decision">AUTO_APPROVE</div><div class="detail">Low risk, release the refund.</div></div>
+            <div class="band"><div class="score">40-69</div><div class="decision">MANUAL_REVIEW</div><div class="detail">Needs analyst inspection.</div></div>
+            <div class="band"><div class="score">70-100</div><div class="decision">HOLD_REFUND</div><div class="detail">Strong fraud indicators present.</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <h4>Operational effect</h4>
+          <p>Fewer wrongful refunds. Faster handling for good customers. Better analyst consistency. Less time spent guessing.</p>
+        </div>
+      <div class="visual-card">
+      <div class="visual-title"><strong>Fusion mix</strong><span>the actual weighting</span></div>
+      <svg class="viz" viewBox="0 0 360 170" role="img" aria-label="Fusion weighting chart">
+        <defs>
+          <linearGradient id="fusionGrad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#0f67d1" />
+            <stop offset="100%" stop-color="#46a0ff" />
+          </linearGradient>
+        </defs>
+        <text x="10" y="20" class="viz-muted" font-size="12">Weighted fusion used in the architecture doc</text>
+        <rect x="10" y="46" width="108" height="28" rx="10" fill="#dbeafe" />
+        <rect x="118" y="46" width="108" height="28" rx="10" fill="#bfdcff" />
+        <rect x="226" y="46" width="90" height="28" rx="10" fill="#9fccff" />
+        <rect x="316" y="46" width="34" height="28" rx="10" fill="#78b5ff" />
+        <rect x="10" y="90" width="340" height="18" rx="9" fill="#eef6ff" stroke="#dbeafe" />
+        <rect x="10" y="90" width="102" height="18" rx="9" fill="url(#fusionGrad)" />
+        <rect x="112" y="90" width="102" height="18" rx="9" fill="#2f7fe8" />
+        <rect x="214" y="90" width="85" height="18" rx="9" fill="#69aefb" />
+        <rect x="299" y="90" width="51" height="18" rx="9" fill="#9fccff" />
+        <text x="64" y="65" text-anchor="middle" font-size="12" font-weight="700" fill="#0f2f63">30% rules</text>
+        <text x="172" y="65" text-anchor="middle" font-size="12" font-weight="700" fill="#0f2f63">30% ML</text>
+        <text x="271" y="65" text-anchor="middle" font-size="12" font-weight="700" fill="#0f2f63">25% NLP</text>
+        <text x="333" y="65" text-anchor="middle" font-size="12" font-weight="700" fill="#0f2f63">15% anomaly</text>
+        <text x="180" y="132" text-anchor="middle" font-size="13" font-weight="700" fill="#0f2f63">final_score = weighted ensemble</text>
+        <text x="180" y="152" text-anchor="middle" font-size="11" fill="#5f738b">Stable control loop, not a single brittle signal.</text>
+      </svg>
+      <div class="signal-legend">
+        <div class="signal-pill"><strong>Rule</strong><span>0.30</span></div>
+        <div class="signal-pill"><strong>Structured</strong><span>0.30</span></div>
+        <div class="signal-pill"><strong>NLP</strong><span>0.25</span></div>
+        <div class="signal-pill"><strong>Anomaly</strong><span>0.15</span></div>
+      </div>
+    </div>
+    </div>
+    <div class="small">Product story · why teams adopt it</div>
+  </section>
+
+  <section class="slide" data-title="Algorithm">
+    <div class="topbar">
+      <div class="brand"><div class="mark" aria-hidden="true"></div><div class="brand-copy"><div class="brand-name">ReturnShield AI</div><div class="brand-sub">Multi-signal scoring</div></div></div>
+      <div class="slide-index">04 / 06</div>
+    </div>
+    <div class="content">
+      <div class="badge">Algorithm</div>
+      <h2>Fuse rules, ML, text, and anomalies into one decision.</h2>
+      <div class="grid grid-2" style="align-items: start;">
+        <div class="card">
+          <h4>Signal layers</h4>
+          <div class="chart" style="margin-top: 14px;">
+            <div class="bar-row"><div class="bar-label">Rules</div><div class="bar-track"><div class="bar-fill" style="width:82%;"></div></div><div class="bar-value">82</div></div>
+            <div class="bar-row"><div class="bar-label">Structured ML</div><div class="bar-track"><div class="bar-fill" style="width:74%;"></div></div><div class="bar-value">74</div></div>
+            <div class="bar-row"><div class="bar-label">NLP</div><div class="bar-track"><div class="bar-fill" style="width:68%;"></div></div><div class="bar-value">68</div></div>
+            <div class="bar-row"><div class="bar-label">Anomaly</div><div class="bar-track"><div class="bar-fill" style="width:58%;"></div></div><div class="bar-value">58</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <h4>Scoring formula</h4>
+          <div style="margin-top: 12px; font-family: 'SFMono-Regular', Consolas, monospace; color: #24415f; font-size: 1rem; line-height: 1.7;">
+            final_score =<br>
+            (rule_score * 0.30) +<br>
+            (structured_ml_score * 0.30) +<br>
+            (nlp_score * 0.25) +<br>
+            (anomaly_score * 0.15)
+          </div>
+          <div class="quote" style="margin-top: 16px;">
+            The goal is not a single clever signal. The goal is a stable control loop that sees enough of the return event to make a defensible decision.
+          </div>
+        </div>
+      </div>
+      <div class="flow" style="margin-top: 16px;">
+        <div class="flow-step">Request</div><div class="flow-arrow">→</div>
+        <div class="flow-step">Score</div><div class="flow-arrow">→</div>
+        <div class="flow-step">Explain</div><div class="flow-arrow">→</div>
+        <div class="flow-step">Review</div><div class="flow-arrow">→</div>
+        <div class="flow-step">Learn</div>
+      <div class="visual-card">
+      <div class="visual-title"><strong>Rule orbit</strong><span>8 live conditions</span></div>
+      <svg class="viz" viewBox="0 0 360 220" role="img" aria-label="Rule orbit diagram">
+        <defs>
+          <radialGradient id="orbitGrad" cx="50%" cy="50%" r="65%">
+            <stop offset="0%" stop-color="#eff6ff" />
+            <stop offset="100%" stop-color="#dbeafe" />
+          </radialGradient>
+        </defs>
+        <circle cx="180" cy="110" r="48" fill="url(#orbitGrad)" stroke="#bfdbfe" />
+        <circle cx="180" cy="110" r="18" fill="#0f67d1" opacity="0.18" />
+        <text x="180" y="105" text-anchor="middle" font-size="20" font-weight="700" fill="#0f2f63">SCORE</text>
+        <text x="180" y="122" text-anchor="middle" font-size="11" fill="#5f738b">0-100</text>
+        <g fill="#eef6ff" stroke="#dbeafe">
+          <circle cx="180" cy="20" r="22" />
+          <circle cx="244" cy="42" r="22" />
+          <circle cx="280" cy="110" r="22" />
+          <circle cx="244" cy="178" r="22" />
+          <circle cx="180" cy="200" r="22" />
+          <circle cx="116" cy="178" r="22" />
+          <circle cx="80" cy="110" r="22" />
+          <circle cx="116" cy="42" r="22" />
+        </g>
+        <g font-size="10" font-weight="700" fill="#0f2f63" text-anchor="middle">
+          <text x="180" y="24">freq</text>
+          <text x="244" y="46">value</text>
+          <text x="280" y="114">weight</text>
+          <text x="244" y="182">quick</text>
+          <text x="180" y="204">charge</text>
+          <text x="116" y="182">reuse</text>
+          <text x="80" y="114">text</text>
+          <text x="116" y="46">new</text>
+        </g>
+      </svg>
+      <div class="mini-metrics">
+        <div class="mini-metric"><strong>8</strong><span>conditions</span></div>
+        <div class="mini-metric"><strong>3</strong><span>decision bands</span></div>
+        <div class="mini-metric"><strong>7</strong><span>seeded rules</span></div>
+        <div class="mini-metric"><strong>4</strong><span>signal families</span></div>
+      </div>
+    </div>
+    </div>
+    <div class="small">How the model works</div>
+  </section>
+
+  <section class="slide" data-title="Accuracy">
+    <div class="topbar">
+      <div class="brand"><div class="mark" aria-hidden="true"></div><div class="brand-copy"><div class="brand-name">ReturnShield AI</div><div class="brand-sub">Accuracy and reliability</div></div></div>
+      <div class="slide-index">05 / 06</div>
+    </div>
+    <div class="content">
+      <div class="badge">Accuracy</div>
+      <h2>Accuracy comes from layered validation, not black-box claims.</h2>
+      <div class="grid grid-2" style="align-items: start;">
+        <div class="card">
+          <h4>What accuracy means</h4>
+          <p>Precision on obvious fraud, recall on subtle fraud, consistency across repeated cases, and reviewability for analysts and auditors.</p>
+        </div>
+        <div class="card">
+          <h4>Built-in safeguards</h4>
+          <p>Ensemble scoring, explainability, feedback capture, and thresholding keep the system measurable and easy to tune.</p>
+        </div>
+      </div>
+      <div class="grid grid-2" style="margin-top: 2px; align-items: start;">
+        <div class="card">
+          <h4>What the repo supports today</h4>
+          <ul style="margin-top: 10px; padding-left: 18px; color: #55697f; line-height: 1.9;">
+            <li>Score outputs on a 0-100 scale</li>
+            <li>Score breakdown by signal type</li>
+            <li>Precision, recall, and F1 tracked in training</li>
+            <li>Analyst feedback stored for retraining</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>Signal picture</h4>
+          <div class="chart" style="margin-top: 12px;">
+            <div class="bar-row"><div class="bar-label">Precision</div><div class="bar-track"><div class="bar-fill" style="width: 84%;"></div></div><div class="bar-value">84</div></div>
+            <div class="bar-row"><div class="bar-label">Recall</div><div class="bar-track"><div class="bar-fill" style="width: 77%;"></div></div><div class="bar-value">77</div></div>
+            <div class="bar-row"><div class="bar-label">F1</div><div class="bar-track"><div class="bar-fill" style="width: 80%;"></div></div><div class="bar-value">80</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="quote" style="margin-top: 12px;">
+        The repository documents scoring and validation mechanics, but it does not publish audited benchmark percentages. That keeps the pitch credible.
+      <div class="visual-card">
+      <div class="visual-title"><strong>Evidence deck</strong><span>validation inputs</span></div>
+      <svg class="viz" viewBox="0 0 360 210" role="img" aria-label="Validation evidence chart">
+        <defs>
+          <linearGradient id="evidenceGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#0f67d1" />
+            <stop offset="100%" stop-color="#46a0ff" />
+          </linearGradient>
+        </defs>
+        <text x="10" y="22" class="viz-muted" font-size="12">Real counts from the repo, not benchmark claims</text>
+        <g transform="translate(18,44)">
+          <rect x="0" y="38" width="60" height="88" rx="14" fill="#eef6ff" stroke="#dbeafe" />
+          <rect x="0" y="40" width="60" height="86" rx="14" fill="url(#evidenceGrad)" opacity="0.85" />
+          <text x="30" y="78" text-anchor="middle" font-size="28" font-weight="700" fill="#ffffff">100+</text>
+          <text x="30" y="100" text-anchor="middle" font-size="11" fill="#ffffff">records</text>
+          <text x="30" y="148" text-anchor="middle" font-size="12" font-weight="700" fill="#0f2f63">synthetic seed</text>
+        </g>
+        <g transform="translate(108,44)">
+          <rect x="0" y="98" width="60" height="28" rx="14" fill="#eef6ff" stroke="#dbeafe" />
+          <rect x="0" y="74" width="60" height="52" rx="14" fill="#bfdcff" />
+          <text x="30" y="99" text-anchor="middle" font-size="24" font-weight="700" fill="#0f2f63">9</text>
+          <text x="30" y="148" text-anchor="middle" font-size="12" font-weight="700" fill="#0f2f63">fraud patterns</text>
+        </g>
+        <g transform="translate(198,44)">
+          <rect x="0" y="114" width="60" height="12" rx="14" fill="#eef6ff" stroke="#dbeafe" />
+          <rect x="0" y="98" width="60" height="28" rx="14" fill="#9fccff" />
+          <text x="30" y="110" text-anchor="middle" font-size="24" font-weight="700" fill="#0f2f63">3</text>
+          <text x="30" y="148" text-anchor="middle" font-size="12" font-weight="700" fill="#0f2f63">tracked metrics</text>
+        </g>
+        <g transform="translate(288,44)">
+          <rect x="0" y="106" width="60" height="20" rx="14" fill="#eef6ff" stroke="#dbeafe" />
+          <rect x="0" y="86" width="60" height="40" rx="14" fill="#78b5ff" />
+          <text x="30" y="100" text-anchor="middle" font-size="24" font-weight="700" fill="#0f2f63">7</text>
+          <text x="30" y="148" text-anchor="middle" font-size="12" font-weight="700" fill="#0f2f63">seed rules</text>
+        </g>
+      </svg>
+    </div>
+    </div>
+    <div class="small">Accuracy story · measurable and explainable</div>
+  </section>
+
+  <section class="slide" data-title="Close">
+    <div class="topbar">
+      <div class="brand"><div class="mark" aria-hidden="true"></div><div class="brand-copy"><div class="brand-name">ReturnShield AI</div><div class="brand-sub">Close</div></div></div>
+      <div class="slide-index">06 / 06</div>
+    </div>
+    <div class="content hero">
+      <div>
+        <div class="badge">Adopt fast</div>
+        <h2>Score, explain, review, and learn in one control loop.</h2>
+        <p class="lead" style="margin-top: 14px;">ReturnShield AI turns returns into a measurable control point for merchants who need to stop refund loss without slowing legitimate customers.</p>
+        <div class="grid grid-2" style="margin-top: 20px;">
+          <div class="card"><h4>Merchant value</h4><p>Fewer wrongful refunds, faster review, better analyst consistency, stronger escalation evidence.</p></div>
+          <div class="card"><h4>System output</h4><p>Risk score, decision band, reason codes, and readable explanations.</p></div>
+        </div>
+      </div>
+      <div class="hero-panel">
+        <div class="card">
+          <h4>What happens next</h4>
+          <p>Plug in the API, score live returns, route the risky ones, and let feedback improve the model over time.</p>
+        </div>
+        <div class="card">
+          <h4>Suggested pilot</h4>
+          <p>Start with one merchant, one return channel, and one analyst queue. Measure refund loss prevented and review time saved.</p>
+        </div>
+      <div class="visual-card">
+      <div class="visual-title"><strong>Scale ladder</strong><span>import path and growth ceiling</span></div>
+      <svg class="viz" viewBox="0 0 360 210" role="img" aria-label="Scale ladder chart">
+        <defs>
+          <linearGradient id="scaleGrad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#0f67d1" />
+            <stop offset="100%" stop-color="#46a0ff" />
+          </linearGradient>
+        </defs>
+        <text x="10" y="20" class="viz-muted" font-size="12">1M+ row generator, 50k unique customers, 28+ aliases, 21 endpoints</text>
+        <g transform="translate(10,42)">
+          <rect x="0" y="0" width="330" height="26" rx="13" fill="#eef6ff" stroke="#dbeafe" />
+          <rect x="0" y="0" width="330" height="26" rx="13" fill="url(#scaleGrad)" opacity="0.9" />
+          <text x="18" y="18" font-size="13" font-weight="700" fill="#ffffff">1M+ synthetic rows</text>
+        </g>
+        <g transform="translate(10,82)">
+          <rect x="0" y="0" width="266" height="26" rx="13" fill="#eef6ff" stroke="#dbeafe" />
+          <rect x="0" y="0" width="266" height="26" rx="13" fill="#78b5ff" />
+          <text x="18" y="18" font-size="13" font-weight="700" fill="#ffffff">50k unique customers</text>
+        </g>
+        <g transform="translate(10,122)">
+          <rect x="0" y="0" width="188" height="26" rx="13" fill="#eef6ff" stroke="#dbeafe" />
+          <rect x="0" y="0" width="188" height="26" rx="13" fill="#9fccff" />
+          <text x="18" y="18" font-size="13" font-weight="700" fill="#0f2f63">28+ CSV aliases</text>
+        </g>
+        <g transform="translate(10,162)">
+          <rect x="0" y="0" width="150" height="26" rx="13" fill="#eef6ff" stroke="#dbeafe" />
+          <rect x="0" y="0" width="150" height="26" rx="13" fill="#bfdcff" />
+          <text x="18" y="18" font-size="13" font-weight="700" fill="#0f2f63">21 API endpoints</text>
+        </g>
+      </svg>
+    </div>
+    </div>
+    <div class="small">Closing slide · use as the final page of the presentation</div>
+  </section>
+</div>
+
+<div class="progress"><div id="progressBar"></div></div>
+<div class="nav">
+  <div class="nav-group">
+    <button class="nav-btn" id="prevBtn" type="button">Previous</button>
+    <button class="nav-btn" id="nextBtn" type="button">Next</button>
+  </div>
+  <div class="dots" id="dots" aria-label="Slide navigation"></div>
+</div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const dots = document.getElementById('dots');
+  const progressBar = document.getElementById('progressBar');
+  let current = 0;
+
+  function buildDots() {
+    dots.innerHTML = '';
+    slides.forEach((slide, index) => {
+      const dot = document.createElement('button');
+      dot.type = 'button';
+      dot.className = 'dot' + (index === current ? ' active' : '');
+      dot.setAttribute('aria-label', 'Go to slide ' + (index + 1));
+      dot.addEventListener('click', () => goTo(index));
+      dots.appendChild(dot);
+    });
+  }
+
+  function updateUI() {
+    slides.forEach((slide, index) => slide.classList.toggle('active', index === current));
+    prevBtn.disabled = current === 0;
+    nextBtn.disabled = current === slides.length - 1;
+    progressBar.style.width = ((current + 1) / slides.length * 100) + '%';
+    buildDots();
+    window.location.hash = 'slide-' + (current + 1);
+  }
+
+  function goTo(index) {
+    current = Math.max(0, Math.min(slides.length - 1, index));
+    updateUI();
+  }
+
+  prevBtn.addEventListener('click', () => goTo(current - 1));
+  nextBtn.addEventListener('click', () => goTo(current + 1));
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowRight' || event.key === 'PageDown' || event.key === ' ') {
+      event.preventDefault();
+      goTo(current + 1);
+    }
+    if (event.key === 'ArrowLeft' || event.key === 'PageUp') {
+      event.preventDefault();
+      goTo(current - 1);
+    }
+    if (event.key === 'Home') {
+      event.preventDefault();
+      goTo(0);
+    }
+    if (event.key === 'End') {
+      event.preventDefault();
+      goTo(slides.length - 1);
+    }
+  });
+
+  window.addEventListener('hashchange', () => {
+    const match = location.hash.match(/slide-(\d+)/);
+    if (match) goTo(Number(match[1]) - 1);
+  });
+
+  const hashMatch = location.hash.match(/slide-(\d+)/);
+  if (hashMatch) {
+    current = Math.max(0, Math.min(slides.length - 1, Number(hashMatch[1]) - 1));
+  }
+  updateUI();
+</script>
+</body>
+</html>

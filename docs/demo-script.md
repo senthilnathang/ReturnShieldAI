@@ -26,7 +26,7 @@ Reset demo data: `python app/scripts/seed_demo_data.py`
 
 Narration:
 - This dashboard shows the current return-fraud queue.
-- The score combines rules, structured ML, NLP, and anomaly detection.
+- The score combines rules and supervised ML, with NLP, anomaly, and graph signals reserved for the broader fusion engine.
 - High-risk returns are surfaced for analyst review.
 
 Points to call out:
@@ -36,6 +36,7 @@ Points to call out:
 - estimated fraud prevented
 - average risk score
 - risk distribution chart (0-19, 20-39, 40-59, 60-79, 80-100 score bands)
+- best model type and version from the ML registry
 
 ## 4. Open the case queue
 
@@ -47,7 +48,7 @@ Narration:
 Suggested cases to open:
 - serial returner (high return frequency)
 - weight mismatch (expected vs returned weight)
-- reused fraud script (NLP detected duplicate text)
+- reused fraud script (text and reason patterns)
 - shared address/device fraud ring
 
 ## 5. Open a high-risk case
@@ -61,10 +62,10 @@ Points to call out:
 - customer profile (age, lifetime orders/returns, risk score)
 - order details (product, SKU, value, delivery date)
 - return details (reason, returned weight, condition)
-- score breakdown (rule, ML, NLP, anomaly bars)
+- score breakdown (rule and ML bars)
 - triggered rules
-- NLP phrases or script reuse
-- timeline (return created → scored → analyst action)
+- suspicious phrases in the return reason
+- timeline (return created -> scored -> analyst action)
 
 ## 6. Apply an analyst decision
 
@@ -88,27 +89,27 @@ Show one or two examples:
 - weight mismatch
 - fast return after delivery
 
-## 8. Show the model page
+## 8. Show the ML engine page or API
 
 Narration:
-- This is a lightweight baseline model, not a heavy MLOps system.
-- It shows model versioning, precision, recall, and label volume.
-- The system is designed to be extensible.
+- The ML layer trains Logistic Regression, Random Forest, XGBoost, and Neural Network models from PostgreSQL.
+- The best model is selected by PR-AUC, then F1, then false positive rate.
+- Artifacts are versioned and promoted into `backend/models/best_model/`.
 
 ## 9. Show production-specific features (optional)
 
 If running the production stack:
 - **Redis Architecture**: dashboard caching, scoring queues, live pub/sub
-- **API v1**: health checks, import jobs, paginated returns, fraud cases
-- **Workers**: `realtime_worker` consumes scoring stream, `import_worker` ingests CSV
+- **API v1**: health checks, import jobs, paginated returns, fraud cases, ML prediction and training APIs
+- **Workers**: `realtime_worker` consumes scoring stream, `import_worker` ingests CSV, `ml_training_worker` retrains models
 
 ## 10. Close with the value proposition
 
 Suggested closing:
 - ReturnShield AI gives analysts a clear fraud score, readable explanations, and a workflow to capture feedback.
 - The demo proves the full journey from return request to analyst decision.
-- The MVP proves the concept; the production foundation is ready for enterprise deployment.
-- Purpose-built for returns — not a checkout fraud tool retrofitted.
+- The supervised ML layer makes the platform more adaptive without removing the rules that analysts trust.
+- Purpose-built for returns - not a checkout fraud tool retrofitted.
 
 ## Optional Reset
 

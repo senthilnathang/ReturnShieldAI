@@ -3,7 +3,7 @@
 Import a Kaggle CSV dataset into ReturnShieldAI.
 
 Usage:
-    python scripts/import_kaggle_dataset.py \\
+    python -m backend.app.scripts.import_kaggle_dataset \\
         --file data/kaggle_returns.csv \\
         --merchant <merchant-id> \\
         --source kaggle
@@ -21,10 +21,10 @@ from uuid import UUID
 # Ensure PYTHONPATH is set
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from app.core.database import async_session_factory, sync_session_factory
-from app.core.logging import setup_logging
+from ..core.database import async_session_factory, sync_session_factory
+from ..core.logging import setup_logging
 from backend.app.prod_models.merchant import Merchant
-from app.services.import_service import ImportService
+from ..services.import_service import ImportService
 
 logger = logging.getLogger("returnshield.scripts.import_kaggle")
 

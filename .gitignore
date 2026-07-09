@@ -41,3 +41,8 @@ config/merchants/
 
 # Docker
 .docker/
+
+# Generated model artifacts (root-level only)
+models/
+.env.local
+.env.production

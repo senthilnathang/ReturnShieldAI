@@ -5,7 +5,7 @@ Seed demo data for development and testing.
 Creates a demo merchant, default rules, and 3 sample returns.
 
 Usage:
-    python scripts/seed_demo_data.py
+    python -m backend.app.scripts.seed_demo_data
 """
 
 import asyncio
@@ -16,8 +16,8 @@ from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from app.core.database import async_session_factory
-from app.core.logging import setup_logging
+from ..core.database import async_session_factory
+from ..core.logging import setup_logging
 from backend.app.prod_models.merchant import Merchant
 from backend.app.prod_models.customer import Customer
 from backend.app.prod_models.customer_identity import CustomerIdentity

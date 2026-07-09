@@ -5,7 +5,7 @@ import logging
 from typing import Any, Optional
 from uuid import UUID
 
-from app.core.redis import RedisClient
+from ..core.redis import RedisClient
 
 logger = logging.getLogger("returnshield.realtime")
 

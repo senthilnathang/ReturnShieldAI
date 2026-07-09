@@ -2,12 +2,15 @@ from __future__ import annotations
 
 
 def fuse_scores(rule_score: float, structured_ml_score: float, nlp_score: float, anomaly_score: float) -> float:
-    final_score = (
-        (rule_score * 0.30)
-        + (structured_ml_score * 0.30)
-        + (nlp_score * 0.25)
-        + (anomaly_score * 0.15)
-    )
+    if nlp_score == 0 and anomaly_score == 0:
+        final_score = (rule_score * 0.35) + (structured_ml_score * 0.65)
+    else:
+        final_score = (
+            (rule_score * 0.25)
+            + (structured_ml_score * 0.45)
+            + (nlp_score * 0.15)
+            + (anomaly_score * 0.05)
+        )
     return round(max(0.0, min(100.0, final_score)), 2)
 
 

@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ReturnShield AI - Bifold Brochure</title>
+<style>
+  :root {
+    --ink: #10131a;
+    --slate: #475161;
+    --muted: #6b7380;
+    --paper: #fbf6ee;
+    --paper-soft: #f6ede2;
+    --panel: rgba(255, 251, 245, 0.96);
+    --line: rgba(16, 19, 26, 0.12);
+    --accent: #c56a2c;
+    --accent-2: #0f4c5c;
+    --accent-3: #80623a;
+    --shadow: 0 18px 40px rgba(17, 23, 31, 0.12);
+  }
+
+  * { box-sizing: border-box; }
+  html { font-size: 16px; }
+  body {
+    margin: 0;
+    color: var(--ink);
+    background:
+      radial-gradient(circle at top left, rgba(197, 106, 44, 0.12), transparent 30%),
+      radial-gradient(circle at bottom right, rgba(15, 76, 92, 0.11), transparent 28%),
+      linear-gradient(180deg, #f8f1e7 0%, #ede3d5 100%);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  .booklet {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 24px 18px 32px;
+  }
+
+  .sheet {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-height: 210mm;
+    margin: 0 auto 18px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(250,244,236,0.92));
+    border: 1px solid rgba(16, 19, 26, 0.08);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .sheet::before {
+    content: "";
+    position: absolute;
+    top: 12mm;
+    bottom: 12mm;
+    left: 50%;
+    width: 1px;
+    background: linear-gradient(180deg, transparent, rgba(16, 19, 26, 0.12), transparent);
+    transform: translateX(-0.5px);
+  }
+
+  .panel {
+    position: relative;
+    padding: 18mm 16mm 16mm;
+    overflow: hidden;
+  }
+
+  .panel + .panel {
+    border-left: 1px solid rgba(16, 19, 26, 0.05);
+  }
+
+  .panel::after {
+    content: "";
+    position: absolute;
+    inset: auto 16mm 12mm;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(197, 106, 44, 0.36), transparent);
+  }
+
+  .label {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    font: 700 0.72rem/1.2 "Trebuchet MS", "Segoe UI", sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: var(--accent-2);
+  }
+
+  .label::before {
+    content: "";
+    width: 32px;
+    height: 1px;
+    background: var(--accent);
+  }
+
+  h1, h2, h3, h4 {
+    margin: 0;
+    line-height: 1.0;
+    font-family: "Baskerville", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    letter-spacing: -0.02em;
+  }
+
+  h1 {
+    font-size: clamp(2.65rem, 5.2vw, 4.3rem);
+    max-width: 9ch;
+  }
+
+  h2 {
+    font-size: clamp(1.55rem, 2.7vw, 2.2rem);
+    max-width: 14ch;
+  }
+
+  h3 {
+    font: 700 0.98rem/1.2 "Trebuchet MS", "Segoe UI", sans-serif;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent-2);
+  }
+
+  p {
+    margin: 0;
+    color: var(--slate);
+    font-size: 0.96rem;
+    max-width: 62ch;
+  }
+
+  .lead {
+    font-size: 1.03rem;
+    line-height: 1.55;
+    color: #2a313b;
+    max-width: 44ch;
+  }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    font: 700 0.72rem/1.2 "Trebuchet MS", "Segoe UI", sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    color: var(--accent-2);
+  }
+
+  .eyebrow::before {
+    content: "";
+    width: 34px;
+    height: 1px;
+    background: var(--accent);
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 26px;
+  }
+
+  .mark {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    background: linear-gradient(145deg, #0f4c5c, #153843 70%);
+    position: relative;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.22);
+  }
+
+  .mark::before,
+  .mark::after {
+    content: "";
+    position: absolute;
+    inset: 10px;
+    border: 1px solid rgba(255,255,255,0.28);
+    border-radius: 10px;
+  }
+
+  .brand-copy {
+    display: grid;
+    gap: 2px;
+  }
+
+  .brand-name {
+    font: 700 0.98rem/1.1 "Trebuchet MS", "Segoe UI", sans-serif;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .brand-sub {
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.4rem 0.75rem;
+    border-radius: 999px;
+    border: 1px solid rgba(15, 76, 92, 0.14);
+    background: rgba(15, 76, 92, 0.06);
+    color: var(--accent-2);
+    font: 700 0.7rem/1.2 "Trebuchet MS", "Segoe UI", sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+  }
+
+  .hero {
+    display: grid;
+    gap: 18px;
+    align-content: start;
+  }
+
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 18px;
+  }
+
+  .stat {
+    padding: 13px 13px 11px;
+    border-radius: 18px;
+    background: rgba(15, 76, 92, 0.05);
+    border: 1px solid rgba(15, 76, 92, 0.1);
+  }
+
+  .stat strong {
+    display: block;
+    font: 700 1.32rem/1.05 "Baskerville", Georgia, serif;
+    color: var(--ink);
+  }
+
+  .stat span {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
+  .grid {
+    display: grid;
+    gap: 14px;
+  }
+
+  .two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .three {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .card {
+    padding: 16px 16px 14px;
+    border-radius: 20px;
+    border: 1px solid rgba(16, 19, 26, 0.08);
+    background: var(--panel);
+    box-shadow: 0 8px 18px rgba(16, 19, 26, 0.04);
+  }
+
+  .card h4 {
+    font-size: 0.94rem;
+    margin-bottom: 7px;
+    color: var(--ink);
+  }
+
+  .card p {
+    font-size: 0.92rem;
+  }
+
+  .list {
+    margin: 10px 0 0;
+    padding-left: 18px;
+    color: var(--slate);
+  }
+
+  .list li { margin: 5px 0; }
+
+  .table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.86rem;
+    margin-top: 14px;
+    background: rgba(255,255,255,0.75);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .table th,
+  .table td {
+    padding: 10px 12px;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid rgba(16, 19, 26, 0.08);
+  }
+
+  .table th {
+    font: 700 0.72rem/1.2 "Trebuchet MS", "Segoe UI", sans-serif;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent-2);
+    background: rgba(15, 76, 92, 0.06);
+  }
+
+  .table tr:last-child td { border-bottom: 0; }
+
+  .formula {
+    margin-top: 12px;
+    padding: 15px 16px;
+    border-radius: 16px;
+    border: 1px solid rgba(16, 19, 26, 0.08);
+    background: linear-gradient(135deg, rgba(15, 76, 92, 0.07), rgba(197, 106, 44, 0.07));
+    font: 500 0.86rem/1.5 "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    white-space: pre-wrap;
+    color: #223041;
+  }
+
+  .bands {
+    display: grid;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .band {
+    display: grid;
+    grid-template-columns: 88px 142px 1fr;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 16px;
+    border: 1px solid rgba(16, 19, 26, 0.08);
+    background: rgba(255,255,255,0.78);
+  }
+
+  .band .score {
+    font: 700 0.8rem/1.05 "Trebuchet MS", "Segoe UI", sans-serif;
+    letter-spacing: 0.06em;
+    color: var(--accent-2);
+  }
+
+  .band .decision {
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: 0.01em;
+    color: var(--ink);
+  }
+
+  .note {
+    padding: 14px 16px;
+    border-left: 4px solid var(--accent);
+    background: rgba(197, 106, 44, 0.06);
+    color: #29313b;
+    font-size: 0.9rem;
+  }
+
+  .infographic {
+    display: grid;
+    gap: 12px;
+    padding: 16px;
+    border-radius: 20px;
+    border: 1px solid rgba(16, 19, 26, 0.08);
+    background:
+      radial-gradient(circle at top right, rgba(15, 76, 92, 0.08), transparent 45%),
+      rgba(255, 255, 255, 0.82);
+    box-shadow: 0 8px 18px rgba(16, 19, 26, 0.04);
+  }
+
+  .graphic-title {
+    font: 700 0.68rem/1.15 "Trebuchet MS", "Segoe UI", sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--accent-2);
+  }
+
+  .metric-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .metric {
+    padding: 12px 10px;
+    border-radius: 16px;
+    background: rgba(15, 76, 92, 0.05);
+    border: 1px solid rgba(15, 76, 92, 0.1);
+    text-align: center;
+  }
+
+  .metric strong {
+    display: block;
+    font: 700 1.1rem/1.05 "Baskerville", Georgia, serif;
+    color: var(--ink);
+  }
+
+  .metric span {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+
+  .signal-stack {
+    display: grid;
+    gap: 10px;
+  }
+
+  .signal-row {
+    display: grid;
+    grid-template-columns: 92px 1fr 40px;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .signal-row .signal-label {
+    font: 700 0.68rem/1.15 "Trebuchet MS", "Segoe UI", sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent-2);
+  }
+
+  .signal-track {
+    position: relative;
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(16, 19, 26, 0.08);
+    overflow: hidden;
+  }
+
+  .signal-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--accent-2), var(--accent));
+  }
+
+  .signal-value {
+    text-align: right;
+    font: 700 0.8rem/1.1 "Trebuchet MS", "Segoe UI", sans-serif;
+    color: var(--ink);
+  }
+
+  .mini-flow {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .mini-step {
+    position: relative;
+    padding: 11px 8px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.82);
+    border: 1px solid rgba(16, 19, 26, 0.08);
+    text-align: center;
+    font: 700 0.68rem/1.2 "Trebuchet MS", "Segoe UI", sans-serif;
+    color: var(--accent-2);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .mini-step::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    right: -7px;
+    width: 6px;
+    height: 1px;
+    background: rgba(197, 106, 44, 0.55);
+  }
+
+  .mini-step:last-child::after { display: none; }
+
+  .ring-graphic {
+    display: grid;
+    place-items: center;
+    min-height: 118px;
+    border-radius: 18px;
+    background:
+      radial-gradient(circle at center, rgba(15, 76, 92, 0.18) 0 18px, transparent 19px),
+      radial-gradient(circle at center, transparent 0 40px, rgba(197, 106, 44, 0.12) 41px 42px, transparent 43px),
+      radial-gradient(circle at center, transparent 0 62px, rgba(15, 76, 92, 0.08) 63px 64px, transparent 65px),
+      rgba(255,255,255,0.58);
+    border: 1px solid rgba(16, 19, 26, 0.08);
+  }
+
+  .ring-graphic strong {
+    font: 700 1.2rem/1 "Baskerville", Georgia, serif;
+    color: var(--ink);
+  }
+
+  .ring-graphic span {
+    display: block;
+    margin-top: 5px;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+  }
+
+  .panel-title {
+    margin-bottom: 10px;
+  }
+
+  .cover {
+    display: grid;
+    gap: 18px;
+    align-content: space-between;
+    min-height: 100%;
+  }
+
+  .cover .headline {
+    gap: 12px;
+  }
+
+  .cover h1 {
+    line-height: 0.94;
+  }
+
+  .cover .lead {
+    margin-top: 10px;
+  }
+
+  .cover .closing {
+    gap: 8px;
+  }
+
+  .cover .headline {
+    display: grid;
+    gap: 16px;
+  }
+
+  .cover .closing {
+    display: grid;
+    gap: 10px;
+  }
+
+  .micro {
+    font: 700 0.7rem/1.2 "Trebuchet MS", "Segoe UI", sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--muted);
+  }
+
+  .fold-tip {
+    position: absolute;
+    top: 12mm;
+    right: 14mm;
+    font: 700 0.68rem/1.2 "Trebuchet MS", "Segoe UI", sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: rgba(70, 81, 99, 0.9);
+  }
+
+  .inside-divider {
+    margin-top: 16px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(197, 106, 44, 0.35), transparent);
+  }
+
+  .section {
+    display: grid;
+    gap: 12px;
+  }
+
+  .section + .section {
+    margin-top: 18px;
+  }
+
+  @media print {
+    @page { size: A4 landscape; margin: 0; }
+    body {
+      background: white;
+      color: #111827;
+    }
+    .booklet {
+      padding: 0;
+      max-width: none;
+    }
+    .sheet {
+      margin: 0;
+      border: none;
+      box-shadow: none;
+      min-height: 210mm;
+      page-break-after: always;
+      break-after: page;
+    }
+    .sheet::before,
+    .fold-tip {
+      display: none;
+    }
+    .panel + .panel {
+      border-left-color: rgba(16, 19, 26, 0.08);
+    }
+    .card,
+    .stat,
+    .band,
+    .table {
+      box-shadow: none;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="booklet">
+  <section class="sheet">
+    <article class="panel">
+      <div class="cover">
+        <div class="headline">
+          <div class="brand">
+            <div class="mark" aria-hidden="true"></div>
+            <div class="brand-copy">
+              <div class="brand-name">ReturnShield AI</div>
+              <div class="brand-sub">Return fraud decisioning for modern commerce</div>
+            </div>
+          </div>
+
+          <div class="badge">Purpose-built for post-purchase risk</div>
+          <h1>Stop return fraud before it becomes refund loss.</h1>
+          <p class="lead">
+            Score every return request, explain the decision, and block risky refunds before cash leaves the system.
+          </p>
+        </div>
+
+        <div>
+          <div class="micro">What it delivers</div>
+          <div class="stat-row">
+            <div class="stat"><strong>0-100</strong><span>Risk score</span></div>
+            <div class="stat"><strong>3</strong><span>Decision bands</span></div>
+            <div class="stat"><strong>Explain</strong><span>Reason trace</span></div>
+            <div class="stat"><strong>Live</strong><span>API scoring</span></div>
+          </div>
+        </div>
+
+        <div class="closing">
+          <p>
+            Built for the fraud surface checkout tools miss: empty-box claims, wardrobing, item swaps, fraud rings,
+            and suspicious return narratives.
+          </p>
+          <div class="micro">ReturnShield AI</div>
+        </div>
+      </div>
+    </article>
+
+    <article class="panel">
+      <h2 class="panel-title">Adopt fast</h2>
+      <p class="lead">Score, explain, review, and learn in one control loop.</p>
+
+      <div class="grid two" style="margin-top: 14px;">
+        <div class="card">
+          <h4>Merchant value</h4>
+          <ul class="list">
+            <li>Fewer wrongful refunds</li>
+            <li>Faster review for good returns</li>
+            <li>Better analyst consistency</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>System output</h4>
+          <ul class="list">
+            <li>Risk score from `0` to `100`</li>
+            <li>`AUTO_APPROVE`, `MANUAL_REVIEW`, or `HOLD_REFUND`</li>
+            <li>Reason codes and readable explanations</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="note" style="margin-top: 12px;">
+        Fast decisions with visible reasoning. Built for merchants who need control, not opaque scores.
+      </div>
+
+      <div class="infographic" style="margin-top: 14px;">
+        <div class="graphic-title">Operational snapshot</div>
+        <div class="metric-grid">
+          <div class="metric"><strong>Score</strong><span>0-100 risk scale</span></div>
+          <div class="metric"><strong>Explain</strong><span>reason codes</span></div>
+          <div class="metric"><strong>Learn</strong><span>feedback loop</span></div>
+        </div>
+        <div class="ring-graphic">
+          <div style="text-align:center;">
+            <strong>HOLD</strong>
+            <span>high-risk cases</span>
+          </div>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <section class="sheet">
+    <article class="panel">
+      <h2 class="panel-title">Product features</h2>
+      <p class="lead">
+        ReturnShield AI works as an operational fraud console, not just a scoring endpoint.
+      </p>
+
+      <div class="infographic" style="margin-top: 16px;">
+        <div class="graphic-title">Signal stack</div>
+        <div class="signal-stack">
+          <div class="signal-row">
+            <div class="signal-label">Rules</div>
+            <div class="signal-track"><div class="signal-fill" style="width: 82%;"></div></div>
+            <div class="signal-value">82</div>
+          </div>
+          <div class="signal-row">
+            <div class="signal-label">Structured ML</div>
+            <div class="signal-track"><div class="signal-fill" style="width: 74%;"></div></div>
+            <div class="signal-value">74</div>
+          </div>
+          <div class="signal-row">
+            <div class="signal-label">NLP</div>
+            <div class="signal-track"><div class="signal-fill" style="width: 68%;"></div></div>
+            <div class="signal-value">68</div>
+          </div>
+          <div class="signal-row">
+            <div class="signal-label">Anomaly</div>
+            <div class="signal-track"><div class="signal-fill" style="width: 58%;"></div></div>
+            <div class="signal-value">58</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid three" style="margin-top: 18px;">
+        <div class="card"><h4>Return scoring</h4><p>Scores every return before the refund is released.</p></div>
+        <div class="card"><h4>Explainability</h4><p>Shows why a request was flagged in plain language.</p></div>
+        <div class="card"><h4>Case review</h4><p>Routes medium and high-risk returns to analysts.</p></div>
+        <div class="card"><h4>Feedback loop</h4><p>Stores analyst decisions for retraining and follow-up.</p></div>
+        <div class="card"><h4>Fraud ring visibility</h4><p>Surfaces connected accounts and repeat behavior.</p></div>
+        <div class="card"><h4>Reason codes</h4><p>Turns score output into actions the team can trust.</p></div>
+      </div>
+
+      <div class="section">
+        <h3>Typical workflow</h3>
+        <div class="card">
+          <ol class="list" style="margin-top: 0;">
+            <li>Return request arrives.</li>
+            <li>Payload is normalized.</li>
+            <li>Rules and models score the case.</li>
+            <li>The return is approved, reviewed, or held.</li>
+            <li>Analyst feedback is stored for improvement.</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="infographic" style="margin-top: 14px;">
+        <div class="graphic-title">Decision loop</div>
+        <div class="mini-flow">
+          <div class="mini-step">Request</div>
+          <div class="mini-step">Score</div>
+          <div class="mini-step">Review</div>
+          <div class="mini-step">Learn</div>
+        </div>
+      </div>
+    </article>
+
+    <article class="panel">
+      <h2 class="panel-title">Algorithm and accuracy</h2>
+      <p class="lead">
+        The model combines signals instead of trusting any single field.
+      </p>
+
+      <div class="section">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Layer</th>
+              <th>Signal</th>
+              <th>Role</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Rules</strong></td>
+              <td>Policy checks</td>
+              <td>Fast guardrails for known patterns</td>
+            </tr>
+            <tr>
+              <td><strong>Structured ML</strong></td>
+              <td>Customer, order, shipment, return fields</td>
+              <td>Finds hidden tabular patterns</td>
+            </tr>
+            <tr>
+              <td><strong>NLP</strong></td>
+              <td>Return reasons and support text</td>
+              <td>Catches suspicious language shifts</td>
+            </tr>
+            <tr>
+              <td><strong>Anomaly detection</strong></td>
+              <td>Outliers and unusual combinations</td>
+              <td>Flags abnormal behavior</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="formula">final_score =
+  (rule_score * 0.30) +
+  (structured_ml_score * 0.30) +
+  (nlp_score * 0.25) +
+  (anomaly_score * 0.15)</div>
+      </div>
+
+      <div class="bands">
+        <div class="band">
+          <div class="score">0-39</div>
+          <div class="decision">AUTO_APPROVE</div>
+          <div>Low risk, release the refund.</div>
+        </div>
+        <div class="band">
+          <div class="score">40-69</div>
+          <div class="decision">MANUAL_REVIEW</div>
+          <div>Needs analyst inspection.</div>
+        </div>
+        <div class="band">
+          <div class="score">70-100</div>
+          <div class="decision">HOLD_REFUND</div>
+          <div>Strong fraud indicators present.</div>
+        </div>
+      </div>
+
+      <div class="section" style="margin-top: 16px;">
+        <h3>Accuracy story</h3>
+        <div class="card">
+          <ul class="list" style="margin-top: 0;">
+            <li>Precision on obvious fraud</li>
+            <li>Recall on subtle fraud</li>
+            <li>Consistency across repeated cases</li>
+            <li>Reviewability for analysts and auditors</li>
+          </ul>
+        </div>
+        <div class="note">
+          The repo tracks precision, recall, and F1 in training runs, but it does not publish audited benchmark
+          percentages. That keeps the pitch credible.
+        </div>
+      </div>
+    </article>
+  </section>
+</div>
+</body>
+</html>

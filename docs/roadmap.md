@@ -1,6 +1,6 @@
-# ReturnShield AI — Roadmap
+# ReturnShield AI - Roadmap
 
-## Phase 1: Hackathon MVP ✅ (Complete)
+## Phase 1: Hackathon MVP - Complete
 
 Single-process FastAPI + SQLite system with the full fraud decisioning pipeline.
 
@@ -17,11 +17,11 @@ Single-process FastAPI + SQLite system with the full fraud decisioning pipeline.
 - [x] FAISS embedding + Qdrant-compatible vector engine
 - [x] VC pitch deck (data, HTML slides, PDF)
 
-## Phase 2: Production Foundation ✅ (Complete)
+## Phase 2: Production Foundation - Complete
 
 PostgreSQL 15 + Redis 7 + FastAPI + SQLAlchemy 2.0 async + Docker Compose.
 
-- [x] 16 normalized database tables with UUID PKs, FK constraints, BRIN/GIN/composite indexes
+- [x] 17 normalized database tables with UUID PKs, FK constraints, BRIN/GIN/composite indexes
 - [x] Alembic migration (001_initial_schema)
 - [x] Generic BaseRepository<T> + specialized repos (Customer, Order, Return, Fraud, Dashboard)
 - [x] Async services: Import, Cache, Dashboard, Realtime, Scoring Stub
@@ -37,17 +37,26 @@ PostgreSQL 15 + Redis 7 + FastAPI + SQLAlchemy 2.0 async + Docker Compose.
 - [x] pytest test suite (models, scoring, dashboard, import, health)
 - [x] Developer documentation
 
-## Phase 3: ML Engine Integration (Next)
+## Phase 3: Supervised ML Engine - In Progress
 
-Replace scoring stubs with real ML models.
+The new production ML layer is implemented and now becomes the next iteration focus.
 
-- [ ] Connect `structured_ml_score` → RandomForest/XGBoost from `backend/app/ml/structured_model.py`
-- [ ] Connect `nlp_score` → sentence-transformers + TF-IDF from `backend/app/modules/nlp_engine/`
-- [ ] Connect `graph_score` → NetworkX PageRank + Louvain from `backend/app/modules/graph_engine/`
-- [ ] Connect `anomaly_score` → IsolationForest from `backend/app/ml/anomaly_model.py`
-- [ ] Model artifact persistence with versioning
-- [ ] Model registry with rollback support
-- [ ] Scheduled retraining pipeline
+- [x] PostgreSQL-backed feature loader and leakage-safe feature store
+- [x] Logistic Regression baseline with class weighting
+- [x] Random Forest tabular model
+- [x] XGBoost high-performance model
+- [x] Neural Network model with PyTorch fallback path
+- [x] Model registry with artifact persistence and promotion
+- [x] Training comparison stored in PostgreSQL (`model_training_runs`)
+- [x] Prediction API under `/api/v1/ml/predict`
+- [x] Batch prediction and training APIs
+- [x] Best-model promotion into `backend/models/best_model/`
+- [x] Redis prediction cache and training progress stream
+- [x] Score fallback when no artifact exists
+- [ ] Add SHAP-based explanations
+- [ ] Add hyperparameter search / cross-validation sweeps
+- [ ] Add scheduled retraining cadence
+- [ ] Add drift monitoring and threshold recalibration
 
 ## Phase 4: Enterprise Features
 

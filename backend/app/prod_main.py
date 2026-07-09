@@ -7,11 +7,11 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api_v1 import router as v1_router
-from app.core.config import settings
-from app.core.database import async_engine
-from app.core.redis import redis_client
-from app.core.logging import setup_logging
+from .api_v1 import router as v1_router
+from .core.config import settings
+from .core.database import async_engine
+from .core.redis import redis_client
+from .core.logging import setup_logging
 
 logger = logging.getLogger("returnshield")
 
@@ -36,7 +36,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=settings.cors_origins_list,
     allow_origin_regex=settings.cors_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],

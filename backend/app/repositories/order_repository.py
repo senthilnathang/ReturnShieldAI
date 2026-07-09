@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.prod_models.order import Order
-from app.repositories.base import BaseRepository
+from .base import BaseRepository
 
 
 class OrderRepository(BaseRepository[Order]):

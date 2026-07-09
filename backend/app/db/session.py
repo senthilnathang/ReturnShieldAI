@@ -4,10 +4,10 @@ from backend.app.core.config import settings
 
 
 engine_kwargs = {"pool_pre_ping": True}
-if settings.database_url.startswith("sqlite"):
+if settings.database_url_sync.startswith("sqlite"):
     engine_kwargs["connect_args"] = {"check_same_thread": False}
 
-engine = create_engine(settings.database_url, **engine_kwargs)
+engine = create_engine(settings.database_url_sync, **engine_kwargs)
 
 
 def init_db() -> None:

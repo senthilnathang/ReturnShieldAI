@@ -6,9 +6,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_async_session
-from app.repositories.customer_repository import CustomerRepository
-from app.schemas.customer_schema import CustomerRead
+from ..core.database import get_async_session
+from ..repositories.customer_repository import CustomerRepository
+from ..schemas.customer_schema import CustomerRead
 
 logger = logging.getLogger("returnshield.api.customers")
 router = APIRouter(prefix="/customers", tags=["Customers"])

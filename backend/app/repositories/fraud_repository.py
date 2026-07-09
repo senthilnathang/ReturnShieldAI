@@ -10,7 +10,7 @@ from sqlalchemy.orm import joinedload
 from backend.app.prod_models.fraud_score import FraudScore
 from backend.app.prod_models.fraud_case import FraudCase
 from backend.app.prod_models.analyst_feedback import AnalystFeedback
-from app.repositories.base import BaseRepository
+from .base import BaseRepository
 
 
 class FraudScoreRepository(BaseRepository[FraudScore]):

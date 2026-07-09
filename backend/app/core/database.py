@@ -5,7 +5,7 @@ from sqlalchemy.pool import NullPool
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.core.config import settings
+from .config import settings
 
 async_engine = create_async_engine(
     settings.database_url,

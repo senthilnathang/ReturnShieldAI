@@ -10,7 +10,7 @@ from sqlalchemy.orm import joinedload
 from backend.app.prod_models.return_request import ReturnRequest
 from backend.app.prod_models.return_item import ReturnItem
 from backend.app.prod_models.support_interaction import SupportInteraction
-from app.repositories.base import BaseRepository
+from .base import BaseRepository
 
 
 class ReturnRepository(BaseRepository[ReturnRequest]):

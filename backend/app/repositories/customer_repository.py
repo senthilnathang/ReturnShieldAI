@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.prod_models.customer import Customer
 from backend.app.prod_models.customer_identity import CustomerIdentity
-from app.repositories.base import BaseRepository
+from .base import BaseRepository
 
 
 class CustomerRepository(BaseRepository[Customer]):

@@ -7,11 +7,11 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
-from app.core.database import get_async_session
-from app.core.redis import get_redis, RedisClient
-from backend.app.prod_models.import_job import ImportJob
-from app.services.import_service import ImportService
-from app.schemas.dashboard_schema import ImportJobCreate, ImportJobRead
+from ..core.database import get_async_session
+from ..core.redis import get_redis, RedisClient
+from ..prod_models.import_job import ImportJob
+from ..services.import_service import ImportService
+from ..schemas.dashboard_schema import ImportJobCreate, ImportJobRead
 
 logger = logging.getLogger("returnshield.api.imports")
 router = APIRouter(prefix="/imports", tags=["Imports"])
