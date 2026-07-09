@@ -160,7 +160,7 @@ start_frontend() {
     return 1
   fi
   print_header "Starting frontend"
-  nohup bash -lc "cd "$FRONTEND_DIR" && exec npm run dev -- --host 127.0.0.1 --port "$FRONTEND_PORT"" >>"$FRONTEND_LOG" 2>&1 &
+  setsid env FRONTEND_DIR="$FRONTEND_DIR" FRONTEND_PORT="$FRONTEND_PORT" bash -lc 'cd "$FRONTEND_DIR" && exec npm run dev -- --host 127.0.0.1 --port "$FRONTEND_PORT"' >>"$FRONTEND_LOG" 2>&1 </dev/null &
   echo $! >"$FRONTEND_PID"
   if wait_for_http "http://127.0.0.1:${FRONTEND_PORT}" 40 1; then
     print_ok "frontend running on http://127.0.0.1:${FRONTEND_PORT}"
@@ -169,6 +169,7 @@ start_frontend() {
     return 1
   fi
 }
+
 
 
 stop_backend() {

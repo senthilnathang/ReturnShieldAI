@@ -7,7 +7,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from .config import nlp_config
-from .predictor import NLPredictor
 from .trainer import train_fraud_classifier, train_intent_classifier
 
 router = APIRouter(prefix="/nlp", tags=["nlp"])
@@ -16,6 +15,8 @@ _predictor: NLPredictor | None = None
 
 
 def get_predictor() -> NLPredictor:
+    from .predictor import NLPredictor
+
     global _predictor
     if _predictor is None:
         _predictor = NLPredictor()
