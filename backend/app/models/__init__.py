@@ -6,3 +6,14 @@ from backend.app.models.fraud_score import FraudScore
 from backend.app.models.rule import Rule
 from backend.app.models.analyst_feedback import AnalystFeedback
 from backend.app.models.model_training_run import ModelTrainingRun
+
+__all__ = [
+    "Customer",
+    "Order",
+    "ReturnRecord",
+    "ReturnCase",
+    "FraudScore",
+    "Rule",
+    "AnalystFeedback",
+    "ModelTrainingRun",
+]

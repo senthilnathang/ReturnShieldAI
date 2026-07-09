@@ -1,42 +1,78 @@
-from dataclasses import dataclass
-from pathlib import Path
+from __future__ import annotations
+
+import json
 import os
+from pathlib import Path
+from typing import Any, List
+
+from pydantic_settings import BaseSettings
 
 
-_BASE_DIR = Path(__file__).resolve().parents[3]
-_DEFAULT_DB_PATH = (_BASE_DIR / "backend" / "returnshield.db").resolve()
+class Settings(BaseSettings):
+    app_name: str = "ReturnShieldAI"
+    app_env: str = "development"
+    debug: bool = True
+    api_prefix: str = "/api/v1"
 
+    # PostgreSQL
+    postgres_user: str = "returnshield"
+    postgres_password: str = "returnshield_secret"
+    postgres_db: str = "returnshield"
+    postgres_host: str = "localhost"
+    postgres_port: int = 5432
 
-def _resolve_database_url(value: str) -> str:
-    if not value.startswith("sqlite:///"):
-        return value
-
-    raw_path = value[len("sqlite:///"):]
-    if raw_path.startswith("/"):
-        return value
-
-    normalized = raw_path.lstrip("./")
-    if normalized in {"", "returnshield.db"}:
-        db_path = _DEFAULT_DB_PATH
-    else:
-        db_path = (_BASE_DIR / normalized).resolve()
-    return f"sqlite:///{db_path}"
-
-
-@dataclass(frozen=True)
-class Settings:
-    app_name: str = os.getenv("APP_NAME", "ReturnShield AI")
-    environment: str = os.getenv("ENVIRONMENT", "development")
-    database_url: str = _resolve_database_url(
-        os.getenv(
+    @property
+    def database_url(self) -> str:
+        return os.getenv(
             "DATABASE_URL",
-            "sqlite:///./returnshield.db",
+            f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}",
         )
-    )
-    cors_origin_regex: str = os.getenv(
-        "CORS_ORIGIN_REGEX",
-        r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
-    )
+
+    @property
+    def database_url_sync(self) -> str:
+        return os.getenv(
+            "DATABASE_URL_SYNC",
+            f"postgresql://{self.postgres_user}:{self.postgres_password}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}",
+        )
+
+    # Redis
+    redis_host: str = "localhost"
+    redis_port: int = 6379
+    redis_db: int = 0
+
+    @property
+    def redis_url(self) -> str:
+        return os.getenv("REDIS_URL", f"redis://{self.redis_host}:{self.redis_port}/{self.redis_db}")
+
+    # CORS
+    cors_origins: List[str] = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+    ]
+
+    @property
+    def cors_origin_regex(self) -> str | None:
+        return None
+
+    # Import
+    import_chunk_size: int = 10_000
+    max_import_workers: int = 4
+
+    # Scoring
+    scoring_timeout_seconds: int = 30
+    default_risk_threshold_low: int = 40
+    default_risk_threshold_high: int = 70
+
+    # Logging
+    log_level: str = "INFO"
+    log_format: str = "json" if os.getenv("APP_ENV") == "production" else "console"
+
+    # Paths
+    data_dir: Path = Path(__file__).parent.parent.parent.parent / "data"
+
+    model_config = {"env_file": ".env.production", "extra": "ignore"}
 
 
 settings = Settings()

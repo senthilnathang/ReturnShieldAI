@@ -31,8 +31,8 @@ Thumbs.db
 *.pid
 *.log
 
-# Generated model artifacts
-models/
+# Generated model artifacts (root-level only)
+/backend/models/
 *.joblib
 *.index
 

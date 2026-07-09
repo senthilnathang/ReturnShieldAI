@@ -1,35 +1,84 @@
+version: "3.9"
+
 services:
   postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: returnshield
-      POSTGRES_USER: returns
-      POSTGRES_PASSWORD: returns
+    image: postgres:15-alpine
+    container_name: returnshield-postgres
+    restart: unless-stopped
     ports:
       - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-returnshield}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-returnshield_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-returnshield}
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+      - ./data:/data:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U returnshield"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    command: >
+      postgres
+      -c shared_buffers=2GB
+      -c effective_cache_size=6GB
+      -c maintenance_work_mem=512MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=64MB
+      -c default_statistics_target=500
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=64MB
+      -c min_wal_size=2GB
+      -c max_wal_size=8GB
+      -c max_worker_processes=8
+      -c max_parallel_workers_per_gather=4
+      -c max_parallel_workers=8
+
+  redis:
+    image: redis:7-alpine
+    container_name: returnshield-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --save 60 1000
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   backend:
     build:
-      context: .
-      dockerfile: backend/Dockerfile
-    environment:
-      DATABASE_URL: postgresql+psycopg://returns:returns@postgres:5432/returnshield
-      CORS_ORIGIN: http://localhost:5173
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: returnshield-backend
+    restart: unless-stopped
     ports:
       - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://returnshield:returnshield_secret@postgres:5432/returnshield
+      DATABASE_URL_SYNC: postgresql://returnshield:returnshield_secret@postgres:5432/returnshield
+      REDIS_URL: redis://redis:6379/0
+      APP_ENV: production
+      LOG_LEVEL: INFO
+      CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000","http://localhost:5173"]}
+    volumes:
+      - ./data:/data:ro
     depends_on:
-      - postgres
-
-  frontend:
-    build:
-      context: .
-      dockerfile: frontend/Dockerfile
-    ports:
-      - "5173:80"
-    depends_on:
-      - backend
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      sh -c "
+        alembic upgrade head &&
+        uvicorn app.prod_main:app --host 0.0.0.0 --port 8000 --workers 4
+      "
 
 volumes:
-  pgdata:
+  postgres_data:
+  redis_data:

@@ -2,9 +2,15 @@
 
 ReturnShield AI is a shipment return fraud decisioning platform for e-commerce and retail teams. It scores each return request, explains why it was flagged, and stores analyst feedback for follow-up review and retraining.
 
+The project has two parallel codebases:
+- **Hackathon MVP** — lightweight system using SQLModel + SQLite, runs locally via `run.sh`
+- **Production Foundation** — PostgreSQL 15 + Redis 7 + FastAPI + SQLAlchemy 2.0 async, runs via Docker Compose
+
 ## Product Flow
 
-`Return request -> normalization -> rules -> structured ML -> NLP -> anomaly detection -> fusion score -> case creation -> analyst decision -> feedback`
+```
+Return request → normalization → rules → structured ML → NLP → anomaly detection → graph features → fusion score → case creation → analyst decision → feedback
+```
 
 ## What The System Does
 
@@ -17,241 +23,195 @@ ReturnShield AI is a shipment return fraud decisioning platform for e-commerce a
 
 ## Tech Stack
 
-- Python 3.12
-- FastAPI
-- SQLModel / SQLAlchemy
-- Pydantic
-- scikit-learn
-- React + TypeScript
-- Vite
-- Tailwind CSS
-- SQLite for local development
-- PostgreSQL for Docker Compose mode
+| Layer | Hackathon MVP | Production Foundation |
+|-------|--------------|----------------------|
+| **Backend** | FastAPI + SQLModel | FastAPI + SQLAlchemy 2.0 async |
+| **Database** | SQLite (file) | PostgreSQL 15+ (async via asyncpg) |
+| **Cache/Queue** | — | Redis 7+ (streams, pub/sub, cache) |
+| **ML** | scikit-learn (5 families) | Same + Pandas (import pipeline) |
+| **Migrations** | — | Alembic |
+| **Frontend** | React + TypeScript + Vite + Tailwind CSS | Same |
+| **Deployment** | `run.sh` dev mode | Docker Compose (3 services) |
+| **Workers** | — | Redis Stream consumer + CLI import worker |
 
 ## Project Layout
 
-- `backend/` backend API, models, ML pipeline, and seed data
-- `frontend/` analyst dashboard
-- `run.sh` local install, run, restart, check, test, and load commands
-- `docs/architecture.md` system architecture overview
-- `docs/` supporting documentation
+```
+├── backend/                  # Backend API, models, ML pipeline, seed data
+│   ├── app/
+│   │   ├── main.py           # Hackathon MVP entry point
+│   │   ├── prod_main.py      # Production Foundation entry point
+│   │   ├── api.py            # Hackathon MVP API routes
+│   │   ├── api_v1/           # Production API v1 routes (21 endpoints)
+│   │   ├── models/           # Hackathon MVP SQLModel entities (8 tables)
+│   │   ├── prod_models/      # Production SQLAlchemy models (16 tables)
+│   │   ├── core/             # Config, database, redis, logging
+│   │   ├── db/               # Base, session, migrations
+│   │   ├── ml/               # ML pipeline (5 families)
+│   │   ├── modules/          # 20 production engine modules
+│   │   ├── repositories/     # Data access layer
+│   │   ├── schemas/          # Pydantic v2 schemas
+│   │   ├── services/         # Business logic services
+│   │   ├── rules/            # Rule engine
+│   │   ├── scripts/          # Import, seed, index scripts
+│   │   └── workers/          # Background workers
+│   ├── alembic/              # Database migrations
+│   ├── Dockerfile
+│   └── README.md
+├── frontend/                 # React analyst dashboard
+├── docs/                     # Documentation
+├── sample_data/              # Synthetic demo corpus
+├── docker-compose.yml        # Production stack
+├── pitch_deck_data.md        # Investor pitch content
+├── pitch_deck.html           # Interactive slides
+└── pitch_deck_returnshield.pdf
+```
 
-## Local Setup
+## Quick Start — Hackathon MVP
 
 ### 1. Install dependencies
-
 ```bash
 ./run.sh install all
 ```
 
 ### 2. Load local seed data
-
 ```bash
 ./run.sh load demo local
 ```
-
-This seeds the local SQLite database with sample customers, orders, returns, cases, rules, and feedback.
 
 ### 3. Start the app in dev mode
-
 ```bash
 ./run.sh run dev
 ```
+- Backend: `http://127.0.0.1:8000`
+- Frontend: `http://127.0.0.1:5173`
 
-Backend:
-- `http://127.0.0.1:8000`
-
-Frontend:
-- `http://127.0.0.1:5173`
-
-### 4. Validate the build
-
+### 4. Validate
 ```bash
 ./run.sh check all
 ./run.sh test all
 ```
 
-### 5. Manage services
+## Quick Start — Production Foundation
 
+### 1. Start infrastructure
 ```bash
-./run.sh status
-./run.sh restart all
-./run.sh stop all
+docker compose up -d postgres redis
 ```
 
-## `run.sh` Reference
-
-### Install
-
+### 2. Install dependencies
 ```bash
-./run.sh install backend
-./run.sh install frontend
-./run.sh install all
+cd backend && pip install -r requirements.txt
 ```
 
-### Run
-
+### 3. Run migrations
 ```bash
-./run.sh run backend
-./run.sh run frontend
-./run.sh run all
-./run.sh run dev
+alembic upgrade head
 ```
 
-### Restart
-
+### 4. Seed demo data
 ```bash
-./run.sh restart backend
-./run.sh restart frontend
-./run.sh restart all
-./run.sh restart dev
+python app/scripts/seed_demo_data.py
 ```
 
-### Check
-
+### 5. Start the API
 ```bash
-./run.sh check backend
-./run.sh check frontend
-./run.sh check all
-./run.sh check dev
+uvicorn app.prod_main:app --reload --port 8000
 ```
 
-### Test
-
-```bash
-./run.sh test backend
-./run.sh test frontend
-./run.sh test all
-./run.sh test dev
-```
-
-### Load sample data
-
-```bash
-./run.sh load demo local
-./run.sh load demo compose
-```
-
-### Status and logs
-
-```bash
-./run.sh status
-./run.sh logs backend
-./run.sh logs frontend
-```
+Open `http://localhost:8000/docs`
 
 ## API Reference
 
-### Health
+### Hackathon MVP Endpoints (`/api/`)
 
-`GET /api/health`
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/health` | Health check |
+| POST | `/returns` | Create return + score |
+| POST | `/returns/score` | Score payload only |
+| GET | `/cases` | List cases (paginated, filtered) |
+| GET | `/cases/{id}` | Case detail |
+| PATCH | `/cases/{id}/decision` | Analyst decision |
+| GET | `/dashboard/metrics` | Dashboard overview |
+| GET | `/rules` | List rules |
+| POST | `/rules` | Create rule |
+| PATCH | `/rules/{id}` | Update rule |
+| POST | `/ml/retrain` | Retrain models |
+| POST | `/seed` | Seed demo data |
 
-### Return intake and scoring
+### Production Foundation Endpoints (`/api/v1/`)
 
-`POST /api/returns`
+#### Health
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/health` | Overall health |
+| GET | `/health/postgres` | PostgreSQL connectivity |
+| GET | `/health/redis` | Redis connectivity |
 
-Creates customer, order, return, case, and fraud score records, then returns the scoring result.
+#### Imports
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/imports/kaggle` | Start CSV import job |
+| GET | `/imports/{job_id}` | Import job status |
+| GET | `/imports` | List import jobs |
 
-`POST /api/returns/score`
+#### Returns
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/returns` | Create return request |
+| GET | `/returns` | List returns (paginated) |
+| GET | `/returns/{return_id}` | Return details |
+| POST | `/returns/{return_id}/enqueue-score` | Enqueue async scoring |
+| POST | `/returns/{return_id}/score-stub` | Score synchronously (stub) |
 
-Scores a return payload without relying on the full intake flow.
+#### Fraud Cases
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/fraud-cases` | List fraud cases |
+| GET | `/fraud-cases/{case_id}` | Case details |
+| PATCH | `/fraud-cases/{case_id}/status` | Update case status |
 
-Example request:
+#### Dashboard
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/dashboard/overview` | Dashboard metrics (cached) |
+| GET | `/dashboard/risk-distribution` | Score distribution (cached) |
+| GET | `/dashboard/recent-cases` | Recent high-risk cases |
+| POST | `/dashboard/refresh-cache` | Invalidate Redis cache |
 
-```json
-{
-  "customer": {
-    "name": "Mia Patel",
-    "email": "mia.patel@example.com",
-    "phone": "+1-202-555-0199",
-    "account_age_days": 21,
-    "address": "88 Fraud Lane",
-    "device_id": "device-fraud",
-    "lifetime_orders": 9,
-    "lifetime_returns": 6
-  },
-  "order": {
-    "sku": "SKU-1002",
-    "product_name": "Designer Jacket",
-    "category": "apparel",
-    "product_value": 420,
-    "expected_weight": 0.8,
-    "payment_method": "card",
-    "payment_method_risk_score": 14,
-    "delivery_date": "2026-07-08T09:00:00Z",
-    "delivery_status": "delivered"
-  },
-  "return": {
-    "return_reason": "Box arrived empty, request full refund.",
-    "chat_transcript": "Customer insists the box was empty.",
-    "email_text": "I want a refund immediately or I will open a chargeback.",
-    "returned_weight": 0.1,
-    "condition_reported": "empty_box"
-  }
-}
+#### Customers / Orders
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/customers/{customer_id}` | Customer detail |
+| GET | `/orders/{order_id}` | Order detail |
+| GET | `/orders` | List orders |
+
+## Database Schema
+
+### Hackathon MVP (8 tables)
+`customers`, `orders`, `returns`, `return_cases`, `fraud_scores`, `rules`, `analyst_feedback`, `model_training_runs`
+
+### Production Foundation (16 tables)
+
 ```
-
-Example response fields:
-
-```json
-{
-  "risk_score": 87.4,
-  "risk_level": "HIGH",
-  "decision": "HOLD_REFUND_HIGH_RISK",
-  "recommended_action": "Hold refund and assign to senior fraud analyst",
-  "score_breakdown": {
-    "rule_score": 82,
-    "structured_ml_score": 76,
-    "nlp_score": 91,
-    "anomaly_score": 68
-  },
-  "reason_codes": [
-    "Weight mismatch detected",
-    "Customer has 7 returns in last 30 days",
-    "Return text similar to previous fraud cases",
-    "High-value item returned within 12 hours"
-  ]
-}
+merchants ──┬── customers ──┬── customer_identities
+            │               ├── orders ──┬── shipments
+            │               │            ├── return_items
+            │               │            └── payments
+            │               ├── return_requests ──┬── return_items
+            │               │                     ├── refunds
+            │               │                     └── support_interactions
+            │               └── fraud_scores ──── fraud_cases
+            ├── rules
+            ├── analyst_feedback
+            └── import_jobs / audit_events
 ```
-
-### Cases
-
-- `GET /api/cases`
-- `GET /api/cases/{case_id}`
-- `PATCH /api/cases/{case_id}/decision`
-
-### Dashboard
-
-- `GET /api/dashboard/metrics`
-
-### Rules
-
-- `GET /api/rules`
-- `POST /api/rules`
-- `PATCH /api/rules/{rule_id}`
-
-### Model retraining
-
-- `POST /api/ml/retrain`
-
-## Data Model
-
-Core tables:
-
-- `customers`
-- `orders`
-- `returns`
-- `return_cases`
-- `fraud_scores`
-- `rules`
-- `analyst_feedback`
-- `model_training_runs`
 
 ## Scoring Logic
 
 Fusion formula:
-
-```text
+```
 final_score =
   (rule_score * 0.30)
 + (structured_ml_score * 0.30)
@@ -260,10 +220,26 @@ final_score =
 ```
 
 Decision bands:
-
 - `0-39` = `AUTO_APPROVE`
 - `40-69` = `MANUAL_REVIEW`
 - `70-100` = `HOLD_REFUND_HIGH_RISK`
+
+## Real-Time Scoring Flow (Production)
+
+```
+Return Created → PostgreSQL → Redis Stream → Worker consumes →
+    Scoring Stub → FraudScore + FraudCase created →
+    Redis Pub/Sub → Dashboard refreshes
+```
+
+### Redis Architecture
+| Feature | Pattern |
+|---------|---------|
+| Dashboard cache | Key-Value with TTL |
+| Scoring queue | Stream + Consumer Group |
+| Live events | Pub/Sub channels |
+| Rate limiting | Sorted Set |
+| Feature cache | Key-Value |
 
 ## ML Modules
 
@@ -276,25 +252,21 @@ Decision bands:
 - `backend/app/ml/train.py`
 - `backend/app/ml/sample_data_generator.py`
 - `backend/app/ml/advanced_signals.py`
+- `backend/app/ml/graph_features.py`
+
+## 20 Production Engine Modules
+
+`alert_engine`, `anomaly_engine`, `decision_engine`, `evidence_engine`, `feature_engine`, `fusion_engine`, `graph_engine`, `investigation_engine`, `kaggle_import`, `merchant_engine`, `monitoring_engine`, `nlp_engine`, `rule_engine`, `structured_ml`, `timeline_engine`, `vector_engine` (FAISS + Qdrant)
 
 ## UI Pages
 
-- Overview dashboard
-- Case queue
+- Overview dashboard (with cached metrics)
+- Case queue (paginated, filterable)
 - Case detail and evidence panel
 - Decision engine view
 - AI / ML enhancements page
 - Rules page
 - Feedback page
-
-## Screenshots
-
-Add screenshots here if needed:
-
-- `docs/screenshots/overview.png`
-- `docs/screenshots/cases.png`
-- `docs/screenshots/detail.png`
-- `docs/screenshots/enhancements.png`
 
 ## Design Notes
 
@@ -302,12 +274,20 @@ Add screenshots here if needed:
 - explainable output instead of opaque risk numbers
 - seeded synthetic data instead of requiring a historical fraud dataset
 - analyst feedback stored for future retraining
+- PostgreSQL + Redis for production; SQLite for local dev
+- Alembic migrations for schema versioning
+- Real-time scoring via Redis Stream consumer groups
+- Background workers for CSV import and async scoring
 
 ## Next Improvements
 
-- stronger embeddings for NLP similarity
-- persisted model artifacts
+- stronger NLP embeddings (sentence-transformers)
+- persisted model artifacts with versioning
 - merchant-specific thresholds
-- alerting and export workflows
+- alerting and export workflows (Slack, email, webhook)
 - graph visualizations for fraud rings
 - stronger evidence drill-down charts
+- LLM investigation assistant
+- image verification (OCR + photo similarity)
+- SHAP explainability integration
+- Multi-tenancy with full isolation
