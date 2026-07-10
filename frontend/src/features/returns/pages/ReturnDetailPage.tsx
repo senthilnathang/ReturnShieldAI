@@ -55,7 +55,7 @@ export function ReturnDetailPage() {
 
         <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
           <div className="text-xs uppercase tracking-[0.24em] text-slate-500">Supporting Evidence</div>
-          <div className="mt-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">Image upload will be available in the next release.</div>
+          <div className="mt-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">Image evidence can be uploaded and compared on the create return form. The OCR result is reviewed during intake before the return is submitted.</div>
           <div className="mt-4 text-xs uppercase tracking-[0.24em] text-slate-500">Timeline</div>
           <div className="mt-3 space-y-2">
             {detail.timeline.map((event) => (

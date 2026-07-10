@@ -176,6 +176,27 @@ class ReturnDetailRead(OrderReturnRead):
     timeline: list[dict[str, str]] = Field(default_factory=list)
 
 
+class OrderImageCompareRequest(BaseModel):
+    image_data_url: str
+    filename: Optional[str] = None
+    mime_type: Optional[str] = None
+
+
+class OrderImageCompareRead(BaseModel):
+    order_id: UUID
+    matched: bool
+    confidence: float = 0
+    ocr_text: str = ""
+    detected_product_name: Optional[str] = None
+    detected_sku: Optional[str] = None
+    detected_serial_number: Optional[str] = None
+    detected_imei: Optional[str] = None
+    mismatch_reasons: list[str] = Field(default_factory=list)
+    evidence: list[str] = Field(default_factory=list)
+    summary: str = ""
+    provider_model: Optional[str] = None
+
+
 class EnqueueScoreRequest(BaseModel):
     return_id: UUID
 

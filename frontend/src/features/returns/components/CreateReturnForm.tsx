@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../../../api/client';
-import type { OrderReturnRecord, ReturnEligibility, ReturnableOrderItem } from '../../../types';
+import type { OrderImageCompareResponse, OrderReturnRecord, ReturnEligibility, ReturnableOrderItem } from '../../../types';
 import { ReturnEligibilityBanner } from './ReturnEligibilityBanner';
 import { ReturnItemsSelector } from './ReturnItemsSelector';
 
@@ -39,6 +39,7 @@ const orderValue = (order: Record<string, unknown>, key: string) => order[key];
 
 export function CreateReturnForm({ orderId, onCreated }: { orderId: string; onCreated?: (result: OrderReturnRecord) => void }) {
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [order, setOrder] = useState<Record<string, unknown> | null>(null);
   const [eligibility, setEligibility] = useState<ReturnEligibility | null>(null);
   const [items, setItems] = useState<ReturnableOrderItem[]>([]);
@@ -51,6 +52,11 @@ export function CreateReturnForm({ orderId, onCreated }: { orderId: string; onCr
   const [returnMethod, setReturnMethod] = useState('Pickup');
   const [pickupAddressId, setPickupAddressId] = useState('');
   const [refundMethod, setRefundMethod] = useState('Original Payment');
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageName, setImageName] = useState<string | null>(null);
+  const [compareResult, setCompareResult] = useState<OrderImageCompareResponse | null>(null);
+  const [compareError, setCompareError] = useState<string | null>(null);
+  const [compareLoading, setCompareLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -101,6 +107,45 @@ export function CreateReturnForm({ orderId, onCreated }: { orderId: string; onCr
     setSelectedIds((current) => (current.includes(id) ? current.filter((value) => value !== id) : [...current, id]));
   };
 
+  const readFileAsDataUrl = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') resolve(reader.result);
+        else reject(new Error('Failed to read image file.'));
+      };
+      reader.onerror = () => reject(new Error('Failed to read image file.'));
+      reader.readAsDataURL(file);
+    });
+
+  const compareImage = async (file: File) => {
+    setCompareLoading(true);
+    setCompareError(null);
+    setCompareResult(null);
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      setImagePreview(dataUrl);
+      setImageName(file.name);
+      const result = await api.compareOrderImage(orderId, {
+        image_data_url: dataUrl,
+        filename: file.name,
+        mime_type: file.type || undefined,
+      });
+      setCompareResult(result);
+    } catch (error) {
+      setCompareError(error instanceof Error ? error.message : 'Unable to compare the uploaded image.');
+    } finally {
+      setCompareLoading(false);
+    }
+  };
+
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await compareImage(file);
+    event.target.value = '';
+  };
+
   const submit = async () => {
     const validationError = validate();
     if (validationError) {
@@ -124,6 +169,19 @@ export function CreateReturnForm({ orderId, onCreated }: { orderId: string; onCr
           serial_number: item.serial_number ?? null,
           imei: item.imei ?? null,
         })),
+        attachments: imagePreview
+          ? [
+              {
+                id: null,
+                file_type: 'image',
+                file_url: imagePreview,
+                image_type: 'CUSTOMER_RETURN_IMAGE',
+                uploaded_by: 'customer',
+                uploaded_at: new Date().toISOString(),
+                analysis_status: compareResult ? (compareResult.matched ? 'MATCHED' : 'REVIEW_NEEDED') : 'PENDING',
+              },
+            ]
+          : [],
       };
       const created = await api.createOrderReturn(orderId, payload);
       onCreated?.(created);
@@ -144,6 +202,7 @@ export function CreateReturnForm({ orderId, onCreated }: { orderId: string; onCr
   }
 
   const returnWindowExpiry = eligibility?.return_window_expires_at ? new Date(eligibility.return_window_expires_at).toLocaleString() : '—';
+  const comparePassed = compareResult ? (compareResult.matched ? 'Match' : 'Mismatch') : null;
 
   return (
     <div className="space-y-4">
@@ -213,10 +272,58 @@ export function CreateReturnForm({ orderId, onCreated }: { orderId: string; onCr
         </Field>
       </section>
 
-      <section className="rounded-[28px] border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
-        <div className="text-xs uppercase tracking-[0.24em] text-slate-500">Supporting Evidence</div>
-        <div className="mt-2 font-medium text-slate-900">Image upload will be available in the next release.</div>
-        <div className="mt-1">The form is structured so attachment capture can be added without redesigning the return workflow.</div>
+      <section className="space-y-4 rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="text-xs uppercase tracking-[0.24em] text-slate-500">Supporting Evidence</div>
+            <div className="mt-2 text-sm text-slate-600">Upload a picture now so the return workflow can run OCR comparison against the order details.</div>
+          </div>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="rounded-2xl border border-slate-200 bg-slate-950 px-4 py-2 text-sm font-medium text-white"
+          >
+            Upload picture
+          </button>
+          <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+        </div>
+
+        {compareLoading ? <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">Reading image and comparing against the order...</div> : null}
+        {compareError ? <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{compareError}</div> : null}
+
+        {imagePreview ? (
+          <div className="grid gap-4 xl:grid-cols-[240px_1fr]">
+            <div className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-50">
+              <img src={imagePreview} alt={imageName ?? 'Uploaded return evidence'} className="h-full w-full object-cover" />
+            </div>
+            <div className="space-y-3 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+              <div className="text-xs uppercase tracking-[0.24em] text-slate-500">Uploaded File</div>
+              <div className="text-sm font-medium text-slate-900">{imageName ?? 'Return evidence image'}</div>
+              <div className="text-sm text-slate-600">The form will keep this image ready for future attachment storage and inspection workflows.</div>
+              {compareResult ? (
+                <div className={`rounded-2xl border p-4 text-sm ${compareResult.matched ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-amber-200 bg-amber-50 text-amber-900'}`}>
+                  <div className="text-xs uppercase tracking-[0.24em] text-slate-500">OCR Comparison Result</div>
+                  <div className="mt-2 text-base font-semibold">{comparePassed} - confidence {Number(compareResult.confidence).toFixed(1)}%</div>
+                  <div className="mt-2 text-sm">{compareResult.summary || 'No summary was returned by the vision model.'}</div>
+                  {compareResult.ocr_text ? <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-3 text-xs text-slate-700"><span className="font-semibold">OCR text:</span> {compareResult.ocr_text}</div> : null}
+                  <div className="mt-3 grid gap-2 md:grid-cols-2">
+                    <Summary label="Detected product" value={compareResult.detected_product_name ?? '—'} />
+                    <Summary label="Detected SKU" value={compareResult.detected_sku ?? '—'} />
+                    <Summary label="Detected serial" value={compareResult.detected_serial_number ?? '—'} />
+                    <Summary label="Detected IMEI" value={compareResult.detected_imei ?? '—'} />
+                  </div>
+                  {compareResult.mismatch_reasons.length ? <div className="mt-3 text-sm"><span className="font-semibold">Mismatch reasons:</span> {compareResult.mismatch_reasons.join(', ')}</div> : null}
+                  {compareResult.evidence.length ? <div className="mt-2 text-sm"><span className="font-semibold">Evidence:</span> {compareResult.evidence.join(' | ')}</div> : null}
+                  {compareResult.provider_model ? <div className="mt-2 text-xs text-slate-500">Model: {compareResult.provider_model}</div> : null}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
+            No image uploaded yet. Uploading a picture will compare it to order details using the vision model and prepare the workflow for future attachment storage.
+          </div>
+        )}
       </section>
 
       <div className="flex flex-wrap items-center gap-3">

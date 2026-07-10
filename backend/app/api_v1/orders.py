@@ -11,7 +11,8 @@ from ..core.database import get_async_session
 from ..prod_models.order import Order
 from ..repositories.order_repository import OrderRepository
 from ..schemas.order_schema import OrderRead
-from ..schemas.return_schema import OrderReturnCreate, OrderReturnRead, ReturnEligibilityRead, ReturnableOrderItemRead
+from ..schemas.return_schema import OrderImageCompareRead, OrderImageCompareRequest, OrderReturnCreate, OrderReturnRead, ReturnEligibilityRead, ReturnableOrderItemRead
+from ..services.return_image_service import ReturnImageService, ReturnImageValidationError
 from ..services.return_service import ReturnService, ReturnValidationError
 
 logger = logging.getLogger("returnshield.api.orders")
@@ -148,6 +149,19 @@ async def get_order_returns(
         items = await service.get_returns_by_order(order_id)
         return {"items": [item.model_dump(mode="json") for item in items], "total": len(items)}
     except ReturnValidationError as exc:
+        raise HTTPException(status_code=exc.status_code, detail={"code": exc.code, "message": exc.message}) from exc
+
+
+@router.post("/{order_id}/return-image-compare", response_model=OrderImageCompareRead)
+async def compare_order_image(
+    order_id: UUID,
+    payload: OrderImageCompareRequest,
+    session: AsyncSession = Depends(get_async_session),
+):
+    service = ReturnImageService(session)
+    try:
+        return await service.compare_order_image(order_id, payload.image_data_url, filename=payload.filename, mime_type=payload.mime_type)
+    except ReturnImageValidationError as exc:
         raise HTTPException(status_code=exc.status_code, detail={"code": exc.code, "message": exc.message}) from exc
 
 

@@ -266,3 +266,18 @@ export type ReturnDetail = OrderReturnRecord & {
   eligibility?: ReturnEligibility | null;
   timeline: Array<{ label: string; time: string }>;
 };
+
+export type OrderImageCompareResponse = {
+  order_id: string;
+  matched: boolean;
+  confidence: number;
+  ocr_text: string;
+  detected_product_name?: string | null;
+  detected_sku?: string | null;
+  detected_serial_number?: string | null;
+  detected_imei?: string | null;
+  mismatch_reasons: string[];
+  evidence: string[];
+  summary: string;
+  provider_model?: string | null;
+};

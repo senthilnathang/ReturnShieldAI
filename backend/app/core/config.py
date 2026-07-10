@@ -86,6 +86,7 @@ class Settings(BaseSettings):
     llm_api_key: str = ""
     llm_base_url: str = "https://openrouter.ai/api/v1"
     llm_model: str = "openai/gpt-4o-mini"
+    llm_vision_model: str = "qwen/qwen3.5-vl"
     llm_temperature: float = 0.2
     llm_max_tokens: int = 1024
     llm_timeout_seconds: int = 30

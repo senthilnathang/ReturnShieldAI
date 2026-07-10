@@ -12,6 +12,7 @@ import type {
   ReturnableOrderItem,
   OrderReturnRecord,
   ReturnDetail,
+  OrderImageCompareResponse,
 } from '../types';
 
 const API_URL = (import.meta.env.VITE_API_URL ?? "/api");
@@ -132,6 +133,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
       headers,
+    }),
+  compareOrderImage: (orderId: string, payload: { image_data_url: string; filename?: string; mime_type?: string }) =>
+    request<OrderImageCompareResponse>(`/v1/orders/${orderId}/return-image-compare`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
     }),
   getReturn: (returnId: string) => request<ReturnDetail>(`/v1/returns/${returnId}`),
   getPayments: (params: { skip?: number; limit?: number; q?: string; chargeback?: boolean; merchantId?: string } = {}) => {
