@@ -43,8 +43,12 @@ class ScoringStubService:
         refund_query = select(Refund).where(Refund.return_id == return_id)
         refund = (await self.session.execute(refund_query)).scalar_one_or_none()
 
-        support_query = select(SupportInteraction).where(SupportInteraction.return_id == return_id)
-        support = (await self.session.execute(support_query)).scalar_one_or_none()
+        support_query = (
+            select(SupportInteraction)
+            .where(SupportInteraction.return_id == return_id)
+            .order_by(SupportInteraction.created_at.desc())
+        )
+        support = (await self.session.execute(support_query)).scalars().first()
 
         reason_codes = []
         score = 0
