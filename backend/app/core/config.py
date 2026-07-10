@@ -64,6 +64,18 @@ class Settings(BaseSettings):
     @property
     def cors_origin_regex(self) -> str | None:
         return r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"
+    # Import
+    import_chunk_size: int = 10_000
+    max_import_workers: int = 4
+
+    # Scoring
+    scoring_timeout_seconds: int = 30
+    default_risk_threshold_low: int = 40
+    default_risk_threshold_high: int = 70
+
+    # Logging
+    log_level: str = "INFO"
+    log_format: str = "json" if os.getenv("APP_ENV") == "production" else "console"
 
     # Paths
     data_dir: Path = Path(__file__).parent.parent.parent.parent / "data"

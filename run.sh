@@ -207,6 +207,8 @@ restart_all() {
 seed_production_demo() {
   print_info "Seeding PostgreSQL demo data"
   "$BACKEND_DIR/.venv/bin/python" -m backend.app.scripts.seed_demo_data
+  print_info "Creating PostgreSQL secondary indexes"
+  "$BACKEND_DIR/.venv/bin/python" -m backend.app.scripts.create_indexes
 }
 
 load_demo() {
