@@ -13,6 +13,8 @@ class OrderCreate(BaseModel):
     external_order_id: Optional[str] = None
     sku: Optional[str] = None
     product_name: Optional[str] = None
+    product_image_url: Optional[str] = None
+    delivery_image_url: Optional[str] = None
     category: Optional[str] = None
     product_value: Optional[float] = None
     quantity: int = 1
@@ -30,6 +32,8 @@ class OrderRead(BaseModel):
     merchant_id: UUID
     customer_id: UUID
     external_order_id: Optional[str] = None
+    product_image_url: Optional[str] = None
+    delivery_image_url: Optional[str] = None
     sku: Optional[str] = None
     product_name: Optional[str] = None
     category: Optional[str] = None

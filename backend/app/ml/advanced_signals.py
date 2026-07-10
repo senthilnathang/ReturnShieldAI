@@ -184,6 +184,19 @@ def build_llm_investigation(
     )
     summary = f"{summary} NLP flags indicate {', '.join((nlp_detection.get('flagged_phrases') or [])[:2])}." if nlp_detection.get("flagged_phrases") else summary
 
+    llm_enabled = False
+    llm_summary = _llm_investigation_summary(
+        decision=decision,
+        explanation=summary,
+        evidence=evidence,
+        graph_fraud=graph_fraud,
+        nlp_detection=nlp_detection,
+        behavioral_ml=behavioral_ml,
+    )
+    if llm_summary:
+        summary = llm_summary
+        llm_enabled = True
+
     return {
         "summary": summary,
         "recommendation": recommendation,
@@ -194,7 +207,50 @@ def build_llm_investigation(
             "Review OCR and image consistency before releasing the refund.",
         ],
         "behavioral_ml_readout": behavioral_ml,
+        "llm_enabled": llm_enabled,
     }
+
+
+def _llm_investigation_summary(
+    *,
+    decision: str,
+    explanation: str,
+    evidence: list[str],
+    graph_fraud: dict[str, Any],
+    nlp_detection: dict[str, Any],
+    behavioral_ml: dict[str, Any],
+) -> str | None:
+    """Augment the investigation summary with an LLM narrative when enabled."""
+    try:
+        from backend.app.modules.llm import get_llm_client
+    except Exception:
+        return None
+
+    client = get_llm_client()
+    if not client.is_enabled:
+        return None
+
+    import json as _json
+    system = (
+        "You are an expert fraud analyst assistant for ReturnShield AI. "
+        "Given structured return-fraud evidence, write a concise (2-4 sentence) "
+        "investigation summary that a human analyst can act on. Do not invent facts."
+    )
+    user = _json.dumps({
+        "decision": decision,
+        "draft_summary": explanation,
+        "evidence": evidence,
+        "graph_fraud_score": graph_fraud.get("score"),
+        "graph_reason_codes": graph_fraud.get("reason_codes", []),
+        "nlp_flagged_phrases": nlp_detection.get("flagged_phrases", []),
+        "behavioral_models": behavioral_ml.get("models", []),
+        "behavioral_reason_codes": behavioral_ml.get("reason_codes", []),
+    }, default=str)
+    try:
+        return client.chat(system=system, user=user, max_tokens=256)
+    except Exception:
+        return None
+
 
 
 def build_advanced_signals(session: Session, payload: Any, customer: Customer, order: Order, return_record: ReturnRecord, *, explanation: str, decision: str, reason_codes: list[str], structured: dict[str, Any], nlp: dict[str, Any]) -> dict[str, Any]:

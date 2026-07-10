@@ -127,6 +127,7 @@ class ReturnService:
                 attachment.file_url or "",
                 filename=attachment.id or attachment.image_type,
                 mime_type=attachment.file_type,
+                reference_image_data_url=order.delivery_image_url or order.product_image_url,
             )
         except (ReturnImageValidationError, Exception) as exc:
             logger.warning("Return image review failed for %s: %s", return_req.id, exc)
@@ -216,6 +217,19 @@ class ReturnService:
 
         scoring = ScoringStubService(self.session)
         result = await scoring.score_return(return_id)
+        if image_review and not image_review.matched:
+            result = result.model_copy(
+                update={
+                    "reason_codes": list(dict.fromkeys(["DELIVERY_REFERENCE_IMAGE_DIFFERS", *result.reason_codes])),
+                    "final_score": max(result.final_score, settings.default_risk_threshold_high),
+                    "risk_level": "HIGH",
+                    "decision": "REJECT",
+                    "score_breakdown": {
+                        **(result.score_breakdown or {}),
+                        "image_mismatch": 100,
+                    },
+                }
+            )
         score_record, fraud_case = await scoring.save_score_and_case(return_id, result)
         customer = await self._load_customer(order.customer_id)
 
@@ -662,6 +676,8 @@ class ReturnService:
                 "order_status": order.order_status,
                 "order_date": order.order_date,
                 "delivery_date": order.delivery_date,
+                "product_image_url": order.product_image_url,
+                "delivery_image_url": order.delivery_image_url,
             },
             customer={
                 "id": customer.id if customer else None,

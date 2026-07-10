@@ -1,0 +1,126 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [4 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Length 6741 >>
+stream
+BT
+/F1 12 Tf
+72 770 Td
+14 TL
+(ReturnShield AI Cricket Review Report) Tj
+T*
+(ReturnShield AI - Cricket Review Report) Tj
+T*
+() Tj
+T*
+(Base URL: http://127.0.0.1:8000/api/v1) Tj
+T*
+(Mode: both) Tj
+T*
+(Original image: /tmp/cricket-original-product.svg) Tj
+T*
+(Reference image: /tmp/cricket-order-reference.svg) Tj
+T*
+() Tj
+T*
+(Checkout) Tj
+T*
+(  Customer ID: 8cd35eac-ba2c-4936-97f1-35f6aacaa51f) Tj
+T*
+(  Merchant ID: 730d631a-37c7-440c-81d4-6f365499e3fd) Tj
+T*
+(  Payment status: PAID) Tj
+T*
+(  Transaction ID: TXN-1783661206) Tj
+T*
+(  Total: 49.98) Tj
+T*
+(  Order ID: a510c2c3-28d6-4bef-83c3-2bbf146f05a4) Tj
+T*
+(  External order ID: ORD-700003) Tj
+T*
+(  Product: Cricket Ball - Red Leather) Tj
+T*
+(  SKU: sku-s-4001) Tj
+T*
+(  Delivery image URL: data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27720%27%20height%3D%27520%27%20viewBox%3D%270%200%20720%20520%27%3E%0A%20%20%3Cdefs%3E%0A%20%20%20%20%3CradialGradient%20id%3D%27bg%27%20cx%3D%2750%25%27%20cy%3D%2740%25%27%20r%3D%2780%25%27%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%270%25%27%20stop-color%3D%27%231f2937%27%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%2755%25%27%20stop-color%3D%27%230f172a%27%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%27100%25%27%20stop-color%3D%27%23020617%27%2F%3E%0A%20%20%20%20%3C%2FradialGradient%3E%0A%20%20%20%20%3CradialGradient%20id%3D%27ball%27%20cx%3D%2738%25%27%20cy%3D%2734%25%27%20r%3D%2768%25%27%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%270%25%27%20stop-color%3D%27%23fca5a5%27%20stop-opacity%3D%270.98%27%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%2738%25%27%20stop-color%3D%27%23b91c1c%27%20stop-opacity%3D%270.98%27%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%27100%25%27%20stop-color%3D%27%234c0519%27%20stop-opacity%3D%271%27%2F%3E%0A%20%20%20%20%3C%2FradialGradient%3E%0A%20%20%20%20%3CradialGradient%20id%3D%27shine%27%20cx%3D%2730%25%27%20cy%3D%2725%25%27%20r%3D%2730%25%27%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%270%25%27%20stop-color%3D%27%23ffffff%27%20stop-opacity%3D%270.88%27%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%2750%25%27%20stop-color%3D%27%23ffffff%27%20stop-opacity%3D%270.25%27%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%27100%25%27%20stop-color%3D%27%23ffffff%27%20stop-opacity%3D%270%27%2F%3E%0A%20%20%20%20%3C%2FradialGradient%3E%0A%20%20%20%20%3Cfilter%20id%3D%27shadowBlur%27%20x%3D%27-30%25%27%20y%3D%27-30%25%27%20width%3D%27160%25%27%20height%3D%27160%25%27%3E%0A%20%20%20%20%20%20%3CfeDropShadow%20dx%3D%270%27%20dy%3D%2722%27%20stdDeviation%3D%2726%27%20flood-color%3D%27%23020617%27%20flood-opacity%3D%270.55%27%2F%3E%0A%20%20%20%20%3C%2Ffilter%3E%0A%20%20%3C%2Fdefs%3E%0A%20%20%3Crect%20width%3D%27720%27%20height%3D%27520%27%20fill%3D%27url%28%23bg%29%27%20rx%3D%2732%27%2F%3E%0A%20%20%3Cellipse%20cx%3D%27360%27%20cy%3D%27390%27%20rx%3D%27180%27%20ry%3D%2744%27%20fill%3D%27%23020617%27%20opacity%3D%270.55%27%2F%3E%0A%20%20%3Cg%20filter%3D%27url%28%23shadowBlur%29%27%3E%0A%20%20%20%20%3Ccircle%20cx%3D%27360%27%20cy%3D%27240%27%20r%3D%27168%27%20fill%3D%27url%28%23ball%29%27%2F%3E%0A%20%20%20%20%3Ccircle%20cx%3D%27300%27%20cy%3D%27190%27%20r%3D%2792%27%20fill%3D%27url%28%23shine%29%27%20opacity%3D%270.9%27%2F%3E%0A%20%20%20%20%3Cpath%20d%3D%27M266%20104%20C303%20148%2C%20332%20190%2C%20362%20240%20C390%20286%2C%20422%20332%2C%20458%20378%27%20fill%3D%27none%27%20stroke%3D%27%23ef4444%27%20stroke-width%3D%2712%27%20stroke-linecap%3D%27round%27%2F%3E%0A%20%20%20%20%3Cpath%20d%3D%27M260%20146%20C304%20166%2C%20344%20191%2C%20381%20232%20C416%20271%2C%20441%20308%2C%20464%20348%27%20fill%3D%27none%27%20stroke%3D%27%23fff7ed%27%20stroke-opacity%3D%270.8%27%20stroke-width%3D%274%27%20stroke-dasharray%3D%2711%2013%27%20stroke-linecap%3D%27round%27%2F%3E%0A%20%20%20%20%3Cpath%20d%3D%27M246%20192%20C304%20206%2C%20349%20233%2C%20388%20273%20C416%20302%2C%20439%20334%2C%20455%20360%27%20fill%3D%27none%27%20stroke%3D%27%23fff7ed%27%20stroke-opacity%3D%270.8%27%20stroke-width%3D%274%27%20stroke-dasharray%3D%2710%2012%27%20stroke-linecap%3D%27round%27%2F%3E%0A%20%20%20%20%3Cpath%20d%3D%27M248%20290%20C303%20271%2C%20347%20247%2C%20382%20212%20C412%20180%2C%20438%20143%2C%20456%20114%27%20fill%3D%27none%27%20stroke%3D%27%23ef4444%27%20stroke-width%3D%2710%27%20stroke-linecap%3D%27round%27%2F%3E%0A%20%20%20%20%3Cpath%20d%3D%27M250%20248%20C305%20232%2C%20350%20205%2C%20390%20165%20C417%20138%2C%20439%20113%2C%20458%2086%27%20fill%3D%27none%27%20stroke%3D%27%23fff7ed%27%20stroke-opacity%3D%270.8%27%20stroke-width%3D%274%27%20stroke-dasharray%3D%2712%2012%27%20stroke-linecap%3D%27round%27%2F%3E%0A%20%20%20%20%3Cpath%20d%3D%27M475%20144%20C506%20150%2C%20533%20168%2C%20548%20194%27%20fill%3D%27none%27%20stroke%3D%27rgba%28255%2C255%2C255%2C0.38%29%27%20stroke-width%3D%277%27%20stroke-linecap%3D%27round%27%2F%3E%0A%20%20%20%20%3Cpath%20d%3D%27M476%20220%20C516%20220%2C%20548%20238%2C%20563%20266%27%20fill%3D%27none%27%20stroke%3D%27rgba%28255%2C255%2C255%2C0.24%29%27%20stroke-width%3D%276%27%20stroke-linecap%3D%27round%27%2F%3E%0A%20%20%20%20%3Ctext%20x%3D%27360%27%20y%3D%27470%27%20text-anchor%3D%27middle%27%20font-family%3D%27Georgia%2C%20serif%27%20font-size%3D%2726%27%20fill%3D%27%23cbd5e1%27%20opacity%3D%270.9%27%3ECricket%20Ball%20-%20Red%20Leather%3C%2Ftext%3E%0A%20%20%20%20%3Ctext%20x%3D%27360%27%20y%3D%27500%27%20text-anchor%3D%27middle%27%20font-family%3D%27Inter%2C%20Arial%2C%20sans-serif%27%20font-size%3D%2713%27%20letter-spacing%3D%274%27%20fill%3D%27%2394a3b8%27%3ECB%3C%2Ftext%3E%0A%20%20%3C%2Fg%3E%0A%3C%2Fsvg%3E) Tj
+T*
+() Tj
+T*
+(Scenario Summary) Tj
+T*
+(Scenario: old_ball_return) Tj
+T*
+(  Status: REJECT) Tj
+T*
+(  Return ID: fc0f47ea-2c58-4695-b524-3109edac40f3) Tj
+T*
+(  External return ID: RET-880039) Tj
+T*
+(  Fraud score: 70) Tj
+T*
+(  Decision: REJECT) Tj
+T*
+(  OCR matched: False) Tj
+T*
+(  OCR confidence: 8.0) Tj
+T*
+(  Mismatch reasons: DELIVERY_REFERENCE_IMAGE_DIFFERS) Tj
+T*
+(  Explanation: Fraud review needed because DELIVERY_REFERENCE_IMAGE_DIFFERS, Quick return after delivery, and ML fallback heuristic.) Tj
+T*
+(  OCR summary: Return image does not match the delivered product image.) Tj
+T*
+() Tj
+T*
+(Scenario: same_delivered_ball_return) Tj
+T*
+(  Status: REJECT) Tj
+T*
+(  Return ID: bcab49b1-497b-4566-99fc-e8cbee020ba6) Tj
+T*
+(  External return ID: RET-880040) Tj
+T*
+(  Fraud score: 70) Tj
+T*
+(  Decision: REJECT) Tj
+T*
+(  OCR matched: False) Tj
+T*
+(  OCR confidence: 8.0) Tj
+T*
+(  Mismatch reasons: DELIVERY_REFERENCE_IMAGE_DIFFERS) Tj
+T*
+(  Explanation: Fraud review needed because DELIVERY_REFERENCE_IMAGE_DIFFERS, Quick return after delivery, and ML fallback heuristic.) Tj
+T*
+(  OCR summary: Return image does not match the delivered product image.) Tj
+T*
+() Tj
+T*
+ET
+endstream
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000185 00000 n 
+0000006978 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+7104
+%%EOF

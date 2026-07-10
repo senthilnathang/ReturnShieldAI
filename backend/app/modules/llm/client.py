@@ -138,8 +138,30 @@ class LLMClient:
         max_tokens: int | None = None,
     ) -> dict[str, Any] | None:
         """Call a vision-capable chat model and expect a JSON response."""
+        return self.chat_vision_json_multi(
+            system=system,
+            user=user,
+            image_data_urls=[image_data_url],
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+
+    def chat_vision_json_multi(
+        self,
+        *,
+        system: str,
+        user: str,
+        image_data_urls: list[str],
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> dict[str, Any] | None:
+        """Call a vision-capable chat model with one or more images."""
         if not self.is_enabled:
             return None
+
+        content = [{"type": "text", "text": user}]
+        for image_data_url in image_data_urls:
+            content.append({"type": "image_url", "image_url": {"url": image_data_url}})
 
         payload: dict[str, Any] = {
             "model": self.vision_model,
@@ -147,10 +169,7 @@ class LLMClient:
                 {"role": "system", "content": system},
                 {
                     "role": "user",
-                    "content": [
-                        {"type": "text", "text": user},
-                        {"type": "image_url", "image_url": {"url": image_data_url}},
-                    ],
+                    "content": content,
                 },
             ],
             "temperature": temperature if temperature is not None else self.temperature,

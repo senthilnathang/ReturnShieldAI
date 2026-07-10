@@ -1,6 +1,12 @@
 from __future__ import annotations
 
+import json
+import logging
 from typing import Any
+
+from backend.app.modules.llm import LLMClient, get_llm_client
+
+logger = logging.getLogger("returnshield.investigation")
 
 
 SYSTEM_PROMPT = """You are an AI fraud investigation assistant for ReturnShield AI.
@@ -16,8 +22,9 @@ Base your analysis only on the evidence provided. Be specific and cite evidence.
 
 
 class InvestigationEngine:
-    def __init__(self, prompt_template: str | None = None):
+    def __init__(self, prompt_template: str | None = None, llm_client: LLMClient | None = None):
         self.prompt_template = prompt_template or SYSTEM_PROMPT
+        self.llm_client = llm_client if llm_client is not None else get_llm_client()
 
     def generate_report(self, case_data: dict[str, Any]) -> dict[str, Any]:
         evidence = case_data.get("evidence", [])
@@ -31,17 +38,79 @@ class InvestigationEngine:
         evidence_summary = self._summarize_evidence(evidence)
         recommendation = self._generate_recommendation(fraud_probability, scores, reason_codes)
 
+        executive_summary = self._build_summary(fraud_probability, scores, reason_codes, graph)
+        reasoning = self._build_reasoning(reason_codes, scores, graph)
+
+        llm_narrative = self._llm_narrative(case_data, fraud_probability, evidence_summary, reasoning)
+        if llm_narrative is not None:
+            executive_summary = llm_narrative.get("executive_summary", executive_summary) or executive_summary
+            llm_reasoning = llm_narrative.get("reasoning")
+            if isinstance(llm_reasoning, list) and llm_reasoning:
+                reasoning = llm_reasoning
+            llm_recs = llm_narrative.get("recommendations")
+            if isinstance(llm_recs, list) and llm_recs:
+                recommendation = [str(r) for r in llm_recs][:5]
+
         return {
-            "executive_summary": self._build_summary(fraud_probability, scores, reason_codes, graph),
+            "executive_summary": executive_summary,
             "fraud_probability": fraud_probability,
             "fraud_probability_label": self._probability_label(fraud_probability),
             "evidence_summary": evidence_summary,
-            "reasoning": self._build_reasoning(reason_codes, scores, graph),
+            "reasoning": reasoning,
             "recommendations": recommendation,
             "confidence": self._calculate_confidence(scores, evidence, graph),
             "key_signals": self._extract_key_signals(scores, graph, signals),
             "timeline_highlights": timeline[:5] if timeline else [],
+            "llm_enabled": llm_narrative is not None,
         }
+
+    def _llm_narrative(
+        self,
+        case_data: dict[str, Any],
+        fraud_probability: float,
+        evidence_summary: list[dict[str, Any]],
+        reasoning: list[str],
+    ) -> dict[str, Any] | None:
+        """Generate narrative insights via the LLM.
+
+        Returns ``None`` when the LLM is disabled or the call fails so the
+        engine transparently falls back to heuristic output.
+        """
+        client = self.llm_client
+        if client is None or not client.is_enabled:
+            return None
+
+        user_prompt = self._build_user_prompt(
+            case_data, fraud_probability, evidence_summary, reasoning
+        )
+        try:
+            result = client.chat_json(system=self.prompt_template, user=user_prompt)
+        except Exception as exc:
+            logger.warning("LLM investigation call failed: %s", exc)
+            return None
+        if result is None:
+            logger.info("LLM investigation unavailable; using heuristic report")
+        return result
+
+    @staticmethod
+    def _build_user_prompt(
+        case_data: dict[str, Any],
+        fraud_probability: float,
+        evidence_summary: list[dict[str, Any]],
+        reasoning: list[str],
+    ) -> str:
+        return json.dumps({
+            "case_id": case_data.get("case_id"),
+            "customer_name": case_data.get("customer_name"),
+            "fraud_probability": fraud_probability,
+            "risk_score": case_data.get("risk_score"),
+            "product_value": case_data.get("product_value"),
+            "reason_codes": case_data.get("reason_codes", []),
+            "scores": case_data.get("scores", {}),
+            "graph_fraud": case_data.get("graph_fraud", {}),
+            "evidence_summary": evidence_summary,
+            "heuristic_reasoning": reasoning,
+        }, default=str)
 
     def _calculate_fraud_probability(self, scores: dict[str, Any], graph: dict[str, Any],
                                      evidence: list[dict[str, Any]]) -> float:

@@ -33,6 +33,10 @@ class FakeVisionClient:
         self.calls.append(kwargs)
         return self.response
 
+    def chat_vision_json_multi(self, **kwargs):
+        self.calls.append(kwargs)
+        return self.response
+
 
 @pytest.mark.asyncio
 async def test_compare_order_image_returns_ocr_result():
@@ -48,6 +52,8 @@ async def test_compare_order_image_returns_ocr_result():
         order_status="DELIVERED",
         order_date=None,
         delivery_date=None,
+        product_image_url="data:image/png;base64,product",
+        delivery_image_url="data:image/png;base64,delivery",
     )
     client = FakeVisionClient(
         {
@@ -70,14 +76,13 @@ async def test_compare_order_image_returns_ocr_result():
     assert result.order_id == order.id
     assert result.matched is True
     assert result.confidence == 97.0
-    assert result.detected_sku == "SKU-123"
+    assert client.calls and client.calls[0]["image_data_urls"] == ["data:image/png;base64,abc123", "data:image/png;base64,delivery"]
     assert result.summary == "The image matches the order item."
-    assert client.calls and client.calls[0]["image_data_url"].startswith("data:image/png;base64,")
 
 
 @pytest.mark.asyncio
 async def test_compare_order_image_rejects_non_data_urls():
-    service = ReturnImageService(FakeOrderSession(SimpleNamespace(id=uuid4(), external_order_id="ORD-1", sku="SKU-1", product_name="Product", category="cat", product_value=1.0, quantity=1, payment_method="CARD", order_status="DELIVERED", order_date=None, delivery_date=None)), llm_client=FakeVisionClient({}))
+    service = ReturnImageService(FakeOrderSession(SimpleNamespace(id=uuid4(), external_order_id="ORD-1", sku="SKU-1", product_name="Product", category="cat", product_value=1.0, quantity=1, payment_method="CARD", order_status="DELIVERED", order_date=None, delivery_date=None, product_image_url=None, delivery_image_url=None)), llm_client=FakeVisionClient({}))
 
     with pytest.raises(ReturnImageValidationError) as exc_info:
         await service.compare_order_image(uuid4(), "https://example.com/image.png")

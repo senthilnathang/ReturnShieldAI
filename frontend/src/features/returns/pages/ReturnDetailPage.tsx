@@ -102,6 +102,14 @@ export function ReturnDetailPage() {
     [analysisResult, finalScore],
   );
 
+  const orderPreview = detail
+    ? {
+        productName: String(detail.order.product_name ?? detail.order.external_order_id ?? detail.order_id),
+        productImageUrl: typeof detail.order.product_image_url === 'string' ? detail.order.product_image_url : null,
+        deliveryImageUrl: typeof detail.order.delivery_image_url === 'string' ? detail.order.delivery_image_url : null,
+      }
+    : null;
+
   if (!returnId) return <div className="rounded-3xl border border-slate-200 bg-white p-5 text-sm text-slate-600">Missing return id.</div>;
   if (error) return <div className="rounded-3xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">{error}</div>;
   if (!detail) return <div className="rounded-3xl border border-slate-200 bg-white p-5 text-sm text-slate-600">Loading return detail...</div>;
@@ -234,6 +242,7 @@ export function ReturnDetailPage() {
           analysisMessage={analysisMessage}
           analysisPreview={analysisPreview}
           analysisName={analysisName}
+          orderPreview={orderPreview}
           detail={detail}
           scoreCards={scoreCards}
           finalScore={finalScore}
@@ -256,6 +265,7 @@ function AnalysisWizardModal({
   analysisMessage,
   analysisPreview,
   analysisName,
+  orderPreview,
   detail,
   scoreCards,
   finalScore,
@@ -272,6 +282,11 @@ function AnalysisWizardModal({
   analysisMessage: string | null;
   analysisPreview: string | null;
   analysisName: string | null;
+  orderPreview: {
+    productName: string;
+    productImageUrl: string | null;
+    deliveryImageUrl: string | null;
+  } | null;
   detail: ReturnDetail;
   scoreCards: Array<{ label: string; value: number }>;
   finalScore: number | null;
@@ -284,8 +299,8 @@ function AnalysisWizardModal({
   const explainability = analysisResult?.explainability;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 px-4 py-6 backdrop-blur-sm">
-      <div className="max-h-[92vh] w-full max-w-6xl overflow-hidden rounded-[32px] border border-white/10 bg-[#0f172a] text-slate-50 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/75 px-4 py-6 backdrop-blur-sm">
+      <div className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[32px] border border-white/10 bg-[#0f172a] text-slate-50 shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-white/10 px-6 py-5">
           <div>
             <div className="text-xs uppercase tracking-[0.3em] text-slate-400">Return Review Wizard</div>
@@ -303,8 +318,8 @@ function AnalysisWizardModal({
           </button>
         </div>
 
-        <div className="grid max-h-[calc(92vh-86px)] gap-0 overflow-hidden lg:grid-cols-[260px_1fr]">
-          <aside className="border-b border-white/10 bg-white/5 p-5 lg:border-b-0 lg:border-r">
+        <div className="grid min-h-0 flex-1 gap-0 overflow-hidden lg:grid-cols-[260px_1fr]">
+          <aside className="border-b border-white/10 bg-white/5 p-5 lg:border-b-0 lg:border-r lg:sticky lg:top-0 lg:h-full lg:min-h-0">
             <div className="space-y-3">
               {WIZARD_STEPS.map((entry, index) => {
                 const active = entry.id === currentStep.id;
@@ -334,7 +349,7 @@ function AnalysisWizardModal({
             </div>
           </aside>
 
-          <div className="overflow-y-auto p-6">
+          <div className="min-h-0 overflow-y-auto p-6 pr-7">
             {loading && !analysisResult ? (
               <div className="rounded-[28px] border border-white/10 bg-white/5 p-8 text-center text-slate-300">
                 <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-amber-400/25 border-t-amber-400" />
@@ -401,11 +416,23 @@ function AnalysisWizardModal({
                     <Panel title="Image preview">
                       {analysisPreview ? (
                         <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950/40">
-                          <img src={analysisPreview} alt={analysisName ?? 'Return evidence'} className="h-full w-full object-cover" />
+                          <img src={analysisPreview} alt={analysisName ?? "Return evidence"} className="h-full w-full object-cover" />
                         </div>
                       ) : (
                         <EmptyState text="No uploaded image available." />
                       )}
+                      {orderPreview?.deliveryImageUrl ? (
+                        <div className="mt-4 overflow-hidden rounded-3xl border border-white/10 bg-slate-950/40">
+                          <div className="border-b border-white/10 px-4 py-3 text-xs uppercase tracking-[0.24em] text-slate-400">Delivery reference</div>
+                          <img src={orderPreview.deliveryImageUrl} alt="Delivered product reference" className="h-full w-full object-cover" />
+                        </div>
+                      ) : null}
+                      {orderPreview?.productImageUrl ? (
+                        <div className="mt-4 overflow-hidden rounded-3xl border border-white/10 bg-slate-950/40">
+                          <div className="border-b border-white/10 px-4 py-3 text-xs uppercase tracking-[0.24em] text-slate-400">Catalog product</div>
+                          <img src={orderPreview.productImageUrl} alt="Catalog product reference" className="h-full w-full object-cover" />
+                        </div>
+                      ) : null}
                     </Panel>
                     <Panel title="OCR readout">
                       {imageReview ? (

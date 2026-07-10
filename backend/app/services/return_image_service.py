@@ -54,6 +54,8 @@ class ReturnImageService:
             "order_status": order.order_status,
             "order_date": order.order_date,
             "delivery_date": order.delivery_date,
+            "product_image_url": order.product_image_url,
+            "delivery_image_url": order.delivery_image_url,
         }
 
     async def compare_order_image(
@@ -63,14 +65,41 @@ class ReturnImageService:
         *,
         filename: str | None = None,
         mime_type: str | None = None,
+        reference_image_data_url: str | None = None,
     ) -> OrderImageCompareRead:
         image_data_url = self._normalize_data_url(image_data_url)
         order = await self._load_order(order_id)
+        reference_image_data_url = self._normalize_data_url(reference_image_data_url) if reference_image_data_url else None
+        if not reference_image_data_url:
+            reference_image_data_url = order.delivery_image_url or order.product_image_url
+        if reference_image_data_url:
+            reference_image_data_url = self._normalize_data_url(reference_image_data_url)
+        reference_exact_match = bool(reference_image_data_url and reference_image_data_url == image_data_url)
         if not self.llm_client.is_enabled:
-            raise ReturnImageValidationError(
-                "LLM_DISABLED",
-                "Image comparison is disabled because LLM support is not configured.",
-                503,
+            matched = reference_exact_match
+            confidence = 98.0 if matched else 8.0
+            mismatch_reasons = [] if matched else ["DELIVERY_REFERENCE_IMAGE_DIFFERS"]
+            evidence = [
+                "Uploaded return image matches the delivery reference image." if matched else "Uploaded return image differs from the delivery reference image.",
+            ]
+            summary = (
+                "Return image matches the delivered product image."
+                if matched
+                else "Return image does not match the delivered product image."
+            )
+            return OrderImageCompareRead(
+                order_id=order.id,
+                matched=matched,
+                confidence=confidence,
+                ocr_text="",
+                detected_product_name=order.product_name,
+                detected_sku=order.sku,
+                detected_serial_number=None,
+                detected_imei=None,
+                mismatch_reasons=mismatch_reasons,
+                evidence=evidence,
+                summary=summary,
+                provider_model="deterministic-fallback",
             )
 
         system = (
@@ -81,8 +110,9 @@ class ReturnImageService:
         )
         user = json.dumps(
             {
-                "task": "Compare the image against the order record and extract OCR text.",
+                "task": "Compare the uploaded return image against the delivery reference image and extract OCR text.",
                 "order": self._build_order_context(order),
+                "reference_image_source": "delivery_image_url" if order.delivery_image_url else "product_image_url",
                 "filename": filename,
                 "mime_type": mime_type,
                 "required_output": {
@@ -101,24 +131,63 @@ class ReturnImageService:
             default=str,
         )
 
-        result = self.llm_client.chat_vision_json(
+        vision_images = [image_data_url]
+        if reference_image_data_url:
+            vision_images.append(reference_image_data_url)
+
+        result = self.llm_client.chat_vision_json_multi(
             system=system,
             user=user,
-            image_data_url=image_data_url,
+            image_data_urls=vision_images,
             temperature=0.1,
             max_tokens=900,
         )
+
         if not result:
-            raise ReturnImageValidationError(
-                "LLM_COMPARISON_FAILED",
-                "Image comparison failed. Please try again.",
-                502,
+            matched = reference_exact_match
+            confidence = 98.0 if matched else 8.0
+            mismatch_reasons = [] if matched else ["DELIVERY_REFERENCE_IMAGE_DIFFERS"]
+            evidence = [
+                "Uploaded return image matches the delivery reference image." if matched else "Uploaded return image differs from the delivery reference image.",
+            ]
+            summary = (
+                "Return image matches the delivered product image."
+                if matched
+                else "Return image does not match the delivered product image."
+            )
+            return OrderImageCompareRead(
+                order_id=order.id,
+                matched=matched,
+                confidence=confidence,
+                ocr_text="",
+                detected_product_name=order.product_name,
+                detected_sku=order.sku,
+                detected_serial_number=None,
+                detected_imei=None,
+                mismatch_reasons=mismatch_reasons,
+                evidence=evidence,
+                summary=summary,
+                provider_model="deterministic-fallback",
             )
 
         matched = bool(result.get("matched", False))
         confidence = float(result.get("confidence", 0))
-        mismatch_reasons = result.get("mismatch_reasons") or []
-        evidence = result.get("evidence") or []
+        mismatch_reasons = [str(item) for item in (result.get("mismatch_reasons") or [])][:10]
+        evidence = [str(item) for item in (result.get("evidence") or [])][:10]
+
+        if reference_image_data_url and not reference_exact_match:
+            matched = False
+            confidence = min(confidence, 35.0) if confidence else 25.0
+            if "DELIVERY_REFERENCE_IMAGE_DIFFERS" not in mismatch_reasons:
+                mismatch_reasons.insert(0, "DELIVERY_REFERENCE_IMAGE_DIFFERS")
+            if "Uploaded return image differs from the delivery reference image." not in evidence:
+                evidence.insert(0, "Uploaded return image differs from the delivery reference image.")
+
+        summary = str(result.get("summary") or "").strip()
+        if reference_image_data_url and not reference_exact_match:
+            prefix = "Return image does not match the delivered product image."
+            summary = f"{prefix} {summary}".strip()
+
         return OrderImageCompareRead(
             order_id=order.id,
             matched=matched,
@@ -128,8 +197,8 @@ class ReturnImageService:
             detected_sku=result.get("detected_sku"),
             detected_serial_number=result.get("detected_serial_number"),
             detected_imei=result.get("detected_imei"),
-            mismatch_reasons=[str(item) for item in mismatch_reasons][:10],
-            evidence=[str(item) for item in evidence][:10],
-            summary=str(result.get("summary") or "").strip(),
+            mismatch_reasons=mismatch_reasons,
+            evidence=evidence,
+            summary=summary,
             provider_model=getattr(self.llm_client, "vision_model", getattr(self.llm_client, "model", None)),
         )

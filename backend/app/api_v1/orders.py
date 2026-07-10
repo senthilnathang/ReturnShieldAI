@@ -8,6 +8,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.database import get_async_session
+from ..core.redis import get_redis
 from ..prod_models.order import Order
 from ..repositories.order_repository import OrderRepository
 from ..schemas.order_schema import OrderRead
@@ -27,6 +28,8 @@ def _to_read(o: Order) -> OrderRead:
         external_order_id=o.external_order_id,
         sku=o.sku,
         product_name=o.product_name,
+        product_image_url=o.product_image_url,
+        delivery_image_url=o.delivery_image_url,
         category=o.category,
         product_value=o.product_value,
         quantity=o.quantity,
@@ -57,6 +60,12 @@ async def _order_row(session: AsyncSession, order: Order) -> dict:
         }
     )
     return payload
+
+
+def _coerce_model_payload(model_cls, payload):
+    if isinstance(payload, str):
+        return model_cls.model_validate_json(payload)
+    return model_cls.model_validate(payload)
 
 
 @router.get("/stats", response_model=dict)
@@ -160,7 +169,17 @@ async def compare_order_image(
 ):
     service = ReturnImageService(session)
     try:
-        return await service.compare_order_image(order_id, payload.image_data_url, filename=payload.filename, mime_type=payload.mime_type)
+        order = await session.get(Order, order_id)
+        reference_image = None
+        if order:
+            reference_image = order.delivery_image_url or order.product_image_url
+        return await service.compare_order_image(
+            order_id,
+            payload.image_data_url,
+            filename=payload.filename,
+            mime_type=payload.mime_type,
+            reference_image_data_url=reference_image,
+        )
     except ReturnImageValidationError as exc:
         raise HTTPException(status_code=exc.status_code, detail={"code": exc.code, "message": exc.message}) from exc
 
@@ -168,17 +187,23 @@ async def compare_order_image(
 @router.post("/{order_id}/returns", response_model=OrderReturnRead, status_code=201)
 async def create_order_return(
     order_id: UUID,
-    payload: OrderReturnCreate,
+    payload: OrderReturnCreate | dict[str, object] | str,
     session: AsyncSession = Depends(get_async_session),
     user_id: str | None = Header(default=None, alias="X-User-Id"),
     permissions: str | None = Header(default=None, alias="X-User-Permissions"),
 ):
-    service = ReturnService(session)
+    redis = None
+    try:
+        redis = await get_redis()
+    except Exception as exc:
+        logger.warning("Redis unavailable for return post-submit processing: %s", exc)
+    service = ReturnService(session, redis=redis)
     can_override = False
     if permissions:
         can_override = "returns.override_eligibility" in {item.strip() for item in permissions.split(",") if item.strip()}
     try:
-        detail = await service.create_return_request(order_id, payload, user_id=user_id, can_override=can_override)
+        normalized_payload = _coerce_model_payload(OrderReturnCreate, payload)
+        detail = await service.create_return_request(order_id, normalized_payload, user_id=user_id, can_override=can_override)
         return OrderReturnRead.model_validate(detail)
     except ReturnValidationError as exc:
         raise HTTPException(status_code=exc.status_code, detail={"code": exc.code, "message": exc.message}) from exc
