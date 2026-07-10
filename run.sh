@@ -5,6 +5,7 @@
 # Commands:
 #   ./run.sh install [backend|frontend|all]
 #   ./run.sh load demo [auto|local|compose]
+#   ./run.sh load cricket [local]
 #   ./run.sh run [backend|frontend|all|dev]
 #   ./run.sh restart [backend|frontend|all]
 #   ./run.sh check [backend|frontend|all]
@@ -210,6 +211,12 @@ seed_production_demo() {
   print_info "Creating PostgreSQL secondary indexes"
   "$BACKEND_DIR/.venv/bin/python" -m backend.app.scripts.create_indexes
 }
+
+seed_cricket_demo() {
+  print_info "Seeding cricket-ball return data"
+  "$BACKEND_DIR/.venv/bin/python" -m backend.app.scripts.seed_cricket_returns
+}
+
 
 load_demo() {
   local mode="${1:-auto}"
@@ -484,6 +491,14 @@ case "${1:-help}" in
   load)
     case "${2:-demo}" in
       demo) load_demo "${3:-auto}" ;;
+      cricket)
+        if is_running "$BACKEND_PID"; then
+          stop_backend
+        fi
+        start_backend
+        seed_cricket_demo
+        print_ok "cricket return data loaded via PostgreSQL seed"
+        ;;
       *) print_err "unknown load target: $2"; exit 1 ;;
     esac
     ;;
