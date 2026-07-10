@@ -97,11 +97,6 @@ class ImportService:
                 mapping = self._auto_map_columns(chunk.columns.tolist())
                 total += len(chunk)
 
-            for chunk in pd.read_csv(file_path, chunksize=chunk_size, dtype=str, keep_default_na=False):
-                chunk = chunk.replace({float("nan"): None, "": None})
-                mapping = self._auto_map_columns(chunk.columns.tolist())
-                total += len(chunk)
-
                 for idx, row in chunk.iterrows():
                     try:
                         await self._import_row(row, mapping, merchant_id)

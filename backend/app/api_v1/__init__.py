@@ -7,6 +7,7 @@ from .fraud_cases import router as fraud_cases_router
 from .dashboard import router as dashboard_router
 from .customers import router as customers_router
 from .orders import router as orders_router
+from .payments import router as payments_router
 from backend.app.modules.ml_engine.router import router as ml_router
 from backend.app.modules.nlp_engine.router import router as nlp_router
 
@@ -18,6 +19,7 @@ router.include_router(fraud_cases_router)
 router.include_router(dashboard_router)
 router.include_router(customers_router)
 router.include_router(orders_router)
+router.include_router(payments_router)
 router.include_router(ml_router)
 router.include_router(nlp_router)
 

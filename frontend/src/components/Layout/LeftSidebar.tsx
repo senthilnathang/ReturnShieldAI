@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { Activity, Bell, Brain, Database, GitBranch, Layers3, LineChart, Monitor, Pin, PinOff, Search, Shield, ShoppingBag, SlidersHorizontal, Sparkles, Warehouse } from 'lucide-react';
+import { Activity, Bell, Brain, CreditCard, Database, GitBranch, Layers3, LineChart, Monitor, Pin, PinOff, RotateCcw, Search, Shield, ShoppingBag, SlidersHorizontal, Sparkles, Warehouse } from 'lucide-react';
 
 const navSections = [
   {
@@ -8,6 +8,14 @@ const navSections = [
       { to: '/', label: 'Overview', icon: LineChart },
       { to: '/cases', label: 'Cases', icon: Layers3 },
       { to: '/investigations', label: 'Investigations', icon: Shield },
+    ],
+  },
+  {
+    label: 'Records',
+    items: [
+      { to: '/orders', label: 'Orders', icon: ShoppingBag },
+      { to: '/payments', label: 'Payments', icon: CreditCard },
+      { to: '/returns', label: 'Returns', icon: RotateCcw },
     ],
   },
   {

@@ -78,7 +78,9 @@ def _get_random_case_data(session: Session) -> list[dict[str, Any]]:
 
 
 def seed_embeddings(session: Session) -> int:
-    service = EmbeddingService()
+    from backend.app.modules.routes import get_embedding_service
+
+    service = get_embedding_service()
     if service.size() > 0:
         return 0
     stmt = select(ReturnCase, ReturnRecord, Customer).join(

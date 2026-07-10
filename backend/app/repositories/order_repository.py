@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.prod_models.order import Order
@@ -45,3 +45,39 @@ class OrderRepository(BaseRepository[Order]):
     ) -> tuple[list[Order], int]:
         filters = {"customer_id": customer_id}
         return await self.list(skip=skip, limit=limit, order_by="order_date", descending=True, filters=filters)
+
+    async def search(
+        self,
+        *,
+        merchant_id: Optional[UUID] = None,
+        customer_id: Optional[UUID] = None,
+        category: Optional[str] = None,
+        q: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 50,
+    ) -> tuple[list[Order], int]:
+        query = select(Order)
+        if merchant_id is not None:
+            query = query.where(Order.merchant_id == merchant_id)
+        if customer_id is not None:
+            query = query.where(Order.customer_id == customer_id)
+        if category:
+            query = query.where(Order.category == category)
+        if q:
+            pattern = f"%{q}%"
+            query = query.where(
+                or_(
+                    Order.external_order_id.ilike(pattern),
+                    Order.sku.ilike(pattern),
+                    Order.product_name.ilike(pattern),
+                )
+            )
+
+        count_query = select(func.count()).select_from(query.subquery())
+        total = (await self.session.execute(count_query)).scalar() or 0
+
+        query = query.order_by(Order.order_date.desc().nullslast()).offset(skip).limit(limit)
+        result = await self.session.execute(query)
+        items = list(result.scalars().all())
+        return items, total
+

@@ -165,6 +165,15 @@ export type PaginatedResponse<T> = {
   total: number;
 };
 
+
+export type RecordsPage = {
+  items: Array<Record<string, unknown>>;
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+};
+
 export type FeedbackRecord = {
   id: string;
   case_id: string;
