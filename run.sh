@@ -5,7 +5,8 @@
 # Commands:
 #   ./run.sh install [backend|frontend|all]
 #   ./run.sh load demo [auto|local|compose]
-#   ./run.sh load cricket [local]
+#   ./run.sh load cricket [orders|returns]
+#   ./run.sh load image-order [path]
 #   ./run.sh run [backend|frontend|all|dev]
 #   ./run.sh restart [backend|frontend|all]
 #   ./run.sh check [backend|frontend|all]
@@ -29,16 +30,20 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$SCRIPT_DIR"
 BACKEND_DIR="$ROOT/backend"
 FRONTEND_DIR="$ROOT/frontend"
+SHOP_DIR="$ROOT/shop"
 RUN_DIR="$ROOT/.run"
 mkdir -p "$RUN_DIR"
 
 BACKEND_PORT="${BACKEND_PORT:-8000}"
 FRONTEND_PORT="${FRONTEND_PORT:-5173}"
+SHOP_PORT="${SHOP_PORT:-5174}"
 
 BACKEND_PID="$RUN_DIR/backend.pid"
 BACKEND_LOG="$RUN_DIR/backend.log"
 FRONTEND_PID="$RUN_DIR/frontend.pid"
 FRONTEND_LOG="$RUN_DIR/frontend.log"
+SHOP_PID="$RUN_DIR/shop.pid"
+SHOP_LOG="$RUN_DIR/shop.log"
 
 command_exists() { command -v "$1" >/dev/null 2>&1; }
 
@@ -116,9 +121,16 @@ install_frontend() {
   print_ok "frontend dependencies installed"
 }
 
+install_shop() {
+  print_header "Installing ShieldShop (Vue) dependencies"
+  (cd "$SHOP_DIR" && npm install)
+  print_ok "shop dependencies installed"
+}
+
 install_all() {
   install_backend
   install_frontend
+  install_shop
 }
 
 start_backend() {
@@ -160,6 +172,26 @@ start_frontend() {
 }
 
 
+start_shop() {
+  if is_running "$SHOP_PID"; then
+    print_warn "shop already running (pid $(cat "$SHOP_PID"))"
+    return 0
+  fi
+  if [ ! -d "$SHOP_DIR/node_modules" ]; then
+    print_err "shop dependencies missing; run ./run.sh install shop first"
+    return 1
+  fi
+  print_header "Starting ShieldShop (Vue storefront)"
+  setsid env SHOP_DIR="$SHOP_DIR" SHOP_PORT="$SHOP_PORT" bash -lc 'cd "$SHOP_DIR" && exec npm run dev -- --host 127.0.0.1 --port "$SHOP_PORT"' >>"$SHOP_LOG" 2>&1 </dev/null &
+  echo $! >"$SHOP_PID"
+  if wait_for_http "http://127.0.0.1:${SHOP_PORT}" 40 1; then
+    print_ok "shop running on http://127.0.0.1:${SHOP_PORT}"
+  else
+    print_err "shop did not become ready; see $SHOP_LOG"
+    return 1
+  fi
+}
+
 
 stop_backend() {
   if is_running "$BACKEND_PID"; then
@@ -185,7 +217,20 @@ stop_frontend() {
   fi
 }
 
+stop_shop() {
+  if is_running "$SHOP_PID"; then
+    local pid
+    pid="$(cat "$SHOP_PID")"
+    kill "$pid" >/dev/null 2>&1 || true
+    rm -f "$SHOP_PID"
+    print_ok "shop stopped"
+  else
+    print_warn "shop not running"
+  fi
+}
+
 stop_all() {
+  stop_shop
   stop_frontend
   stop_backend
 }
@@ -199,10 +244,15 @@ restart_frontend() {
   stop_frontend
   start_frontend
 }
+restart_shop() {
+  stop_shop
+  start_shop
+}
 restart_all() {
   stop_all
   start_backend
   start_frontend
+  start_shop
 }
 
 seed_production_demo() {
@@ -215,6 +265,17 @@ seed_production_demo() {
 seed_cricket_demo() {
   print_info "Seeding cricket-ball return data"
   "$BACKEND_DIR/.venv/bin/python" -m backend.app.scripts.seed_cricket_returns
+}
+
+seed_cricket_training_returns() {
+  print_info "Seeding cricket-ball return training cases"
+  "$BACKEND_DIR/.venv/bin/python" -m backend.app.scripts.seed_cricket_training_returns
+}
+
+seed_image_order() {
+  local image_path="${1:-/home/sibin/Downloads/prod_image.jpg}"
+  print_info "Creating a custom image-backed order from $image_path"
+  "$BACKEND_DIR/.venv/bin/python" -m backend.app.scripts.create_image_order --image "$image_path"
 }
 
 
@@ -343,13 +404,19 @@ status() {
   else
     print_warn "frontend: not running"
   fi
+  if is_running "$SHOP_PID"; then
+    print_ok "shop: running on :$SHOP_PORT (pid $(cat "$SHOP_PID"))"
+  else
+    print_warn "shop: not running"
+  fi
 }
 
 logs() {
   case "${1:-all}" in
     backend) tail -f "$BACKEND_LOG" ;;
     frontend) tail -f "$FRONTEND_LOG" ;;
-    all|*) tail -f "$BACKEND_LOG" "$FRONTEND_LOG" ;;
+    shop) tail -f "$SHOP_LOG" ;;
+    all|*) tail -f "$BACKEND_LOG" "$FRONTEND_LOG" "$SHOP_LOG" ;;
   esac
 }
 
@@ -412,6 +479,8 @@ Global flags:
 Commands:
   install [backend|frontend|all]
   load demo [auto|local|compose]
+  load cricket [orders|returns]
+  load image-order [path]
   run [backend|frontend|all|dev]
   restart [backend|frontend|all|dev]
   check [backend|frontend|all|dev]
@@ -484,6 +553,7 @@ case "${1:-help}" in
     case "${2:-all}" in
       backend) install_backend ;;
       frontend) install_frontend ;;
+      shop) install_shop ;;
       all) install_all ;;
       *) print_err "unknown install target: $2"; exit 1 ;;
     esac
@@ -492,12 +562,33 @@ case "${1:-help}" in
     case "${2:-demo}" in
       demo) load_demo "${3:-auto}" ;;
       cricket)
+        case "${3:-orders}" in
+          orders|local)
+            if is_running "$BACKEND_PID"; then
+              stop_backend
+            fi
+            start_backend
+            seed_cricket_demo
+            print_ok "cricket order data loaded via PostgreSQL seed"
+            ;;
+          returns|training|pretrain)
+            if is_running "$BACKEND_PID"; then
+              stop_backend
+            fi
+            start_backend
+            seed_cricket_training_returns
+            print_ok "cricket return training data loaded via PostgreSQL seed"
+            ;;
+          *) print_err "unknown cricket load mode: $3"; exit 1 ;;
+        esac
+        ;;
+      image-order)
         if is_running "$BACKEND_PID"; then
           stop_backend
         fi
         start_backend
-        seed_cricket_demo
-        print_ok "cricket return data loaded via PostgreSQL seed"
+        seed_image_order "${3:-/home/sibin/Downloads/prod_image.jpg}"
+        print_ok "custom image-backed order loaded via PostgreSQL seed"
         ;;
       *) print_err "unknown load target: $2"; exit 1 ;;
     esac
@@ -506,7 +597,8 @@ case "${1:-help}" in
     case "${2:-all}" in
       backend) start_backend ;;
       frontend) start_frontend ;;
-      all|dev) start_backend; start_frontend ;;
+      shop) start_shop ;;
+      all|dev) start_backend; start_frontend; start_shop ;;
       *) print_err "unknown run target: $2"; exit 1 ;;
     esac
     ;;
@@ -514,6 +606,7 @@ case "${1:-help}" in
     case "${2:-all}" in
       backend) restart_backend ;;
       frontend) restart_frontend ;;
+      shop) restart_shop ;;
       all|dev) restart_all ;;
       *) print_err "unknown restart target: $2"; exit 1 ;;
     esac
@@ -522,6 +615,7 @@ case "${1:-help}" in
     case "${2:-all}" in
       backend) stop_backend ;;
       frontend) stop_frontend ;;
+      shop) stop_shop ;;
       all|dev) stop_all ;;
       *) print_err "unknown stop target: $2"; exit 1 ;;
     esac
