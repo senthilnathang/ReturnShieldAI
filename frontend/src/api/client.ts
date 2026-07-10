@@ -11,6 +11,7 @@ import type {
   ReturnEligibility,
   ReturnableOrderItem,
   OrderReturnRecord,
+  ReturnAnalysisResponse,
   ReturnDetail,
   OrderImageCompareResponse,
 } from '../types';
@@ -140,6 +141,11 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   getReturn: (returnId: string) => request<ReturnDetail>(`/v1/returns/${returnId}`),
+  runReturnAnalysis: (returnId: string, payload: { image_data_url: string; filename?: string; mime_type?: string }) =>
+    request<ReturnAnalysisResponse>(`/v1/returns/${returnId}/run-analysis`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
   getPayments: (params: { skip?: number; limit?: number; q?: string; chargeback?: boolean; merchantId?: string } = {}) => {
     const qs = recordParams(params);
     return request<RecordsPage>(`/v1/payments${qs ? `?${qs}` : ''}`);

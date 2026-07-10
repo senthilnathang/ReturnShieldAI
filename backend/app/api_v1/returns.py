@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,9 +17,9 @@ from ..schemas.return_schema import (
     EnqueueScoreRequest,
     ScoringResult,
     ReturnDetailRead,
+    ReturnAnalysisRead,
+    OrderImageCompareRequest,
 )
-from ..services.realtime_service import RealtimeService
-from ..services.scoring_stub_service import ScoringStubService
 from ..services.return_service import ReturnService, ReturnValidationError
 
 logger = logging.getLogger("returnshield.api.returns")
@@ -52,6 +52,20 @@ def _to_read(r: ReturnRequest) -> ReturnRequestRead:
         created_at=r.created_at,
         updated_at=r.updated_at,
     )
+
+
+def _coerce_model_payload(model_cls, payload):
+    if isinstance(payload, str):
+        return model_cls.model_validate_json(payload)
+    return model_cls.model_validate(payload)
+
+async def _safe_get_redis() -> RedisClient | None:
+    try:
+        return await get_redis()
+    except Exception as exc:
+        logger.warning("Redis unavailable for return analysis: %s", exc)
+        return None
+
 
 
 @router.post("", response_model=ReturnRequestRead, status_code=201)
@@ -140,6 +154,27 @@ async def get_return(
     service = ReturnService(session)
     try:
         return await service.get_return_detail(return_id)
+    except ReturnValidationError as exc:
+        raise HTTPException(status_code=exc.status_code, detail={"code": exc.code, "message": exc.message}) from exc
+
+
+@router.post("/{return_id}/run-analysis", response_model=ReturnAnalysisRead)
+async def run_return_analysis(
+    return_id: UUID,
+    payload: OrderImageCompareRequest | dict[str, object] | str,
+    session: AsyncSession = Depends(get_async_session),
+    user_id: str | None = Header(default=None, alias="X-User-Id"),
+):
+    service = ReturnService(session, redis=await _safe_get_redis())
+    try:
+        normalized_payload = _coerce_model_payload(OrderImageCompareRequest, payload)
+        return await service.run_return_analysis(
+            return_id,
+            image_data_url=normalized_payload.image_data_url,
+            filename=normalized_payload.filename,
+            mime_type=normalized_payload.mime_type,
+            user_id=user_id,
+        )
     except ReturnValidationError as exc:
         raise HTTPException(status_code=exc.status_code, detail={"code": exc.code, "message": exc.message}) from exc
 

@@ -266,6 +266,68 @@ export type ReturnDetail = OrderReturnRecord & {
   eligibility?: ReturnEligibility | null;
   timeline: Array<{ label: string; time: string }>;
 };
+export type FraudScoreRecord = {
+  id: string;
+  merchant_id: string;
+  return_id: string;
+  customer_id: string;
+  rule_score: number;
+  structured_ml_score: number;
+  nlp_score: number;
+  graph_score: number;
+  anomaly_score: number;
+  final_score: number;
+  risk_level?: RiskLevel | null;
+  decision?: Decision | null;
+  reason_codes_json?: unknown;
+  score_breakdown_json?: Record<string, unknown> | null;
+  created_at: string;
+};
+
+export type FraudCaseRecord = {
+  id: string;
+  merchant_id: string;
+  return_id: string;
+  customer_id: string;
+  fraud_score_id?: string | null;
+  case_status?: string | null;
+  priority?: string | null;
+  assigned_to?: string | null;
+  recommended_action?: string | null;
+  case_summary?: string | null;
+  created_at: string;
+  updated_at: string;
+  closed_at?: string | null;
+};
+
+export type ReturnAnalysisScoreResult = {
+  rule_score: number;
+  structured_ml_score: number;
+  nlp_score: number;
+  graph_score: number;
+  anomaly_score: number;
+  final_score: number;
+  risk_level: RiskLevel;
+  decision: Decision;
+  reason_codes: string[];
+  score_breakdown: Record<string, unknown>;
+};
+
+export type ReturnAnalysisResponse = {
+  return_detail: ReturnDetail;
+  image_review?: OrderImageCompareResponse | null;
+  score?: FraudScoreRecord | null;
+  fraud_case?: FraudCaseRecord | null;
+  score_result: ReturnAnalysisScoreResult;
+  explanation: string;
+  recommended_action: string;
+  explainability: ExplainabilityPanel;
+  reason_codes: string[];
+  score_breakdown: Record<string, unknown>;
+  decision_trace: Array<{ stage: string; value: string | number }>;
+  model_version?: string | null;
+};
+
 
 export type OrderImageCompareResponse = {
   order_id: string;

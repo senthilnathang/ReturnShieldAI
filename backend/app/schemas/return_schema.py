@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from .fraud_schema import FraudCaseRead, FraudScoreRead
+
 
 class ReturnRequestCreate(BaseModel):
     merchant_id: UUID
@@ -195,6 +197,21 @@ class OrderImageCompareRead(BaseModel):
     evidence: list[str] = Field(default_factory=list)
     summary: str = ""
     provider_model: Optional[str] = None
+
+
+class ReturnAnalysisRead(BaseModel):
+    return_detail: ReturnDetailRead
+    image_review: OrderImageCompareRead | None = None
+    score: FraudScoreRead | None = None
+    fraud_case: FraudCaseRead | None = None
+    score_result: ScoringResult
+    explanation: str = ""
+    recommended_action: str = "Review manually"
+    explainability: dict[str, Any] = Field(default_factory=dict)
+    reason_codes: list[str] = Field(default_factory=list)
+    score_breakdown: dict[str, Any] = Field(default_factory=dict)
+    decision_trace: list[dict[str, Any]] = Field(default_factory=list)
+    model_version: str | None = None
 
 
 class EnqueueScoreRequest(BaseModel):

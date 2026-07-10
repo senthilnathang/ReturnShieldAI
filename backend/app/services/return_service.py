@@ -21,17 +21,25 @@ from backend.app.prod_models.refund import Refund
 from backend.app.prod_models.return_item import ReturnItem
 from backend.app.prod_models.return_request import ReturnRequest
 from backend.app.prod_models.shipment import Shipment
+from backend.app.prod_models.support_interaction import SupportInteraction
 from backend.app.schemas.return_schema import (
+    OrderImageCompareRead,
     OrderReturnCreate,
     OrderReturnItemCreate,
     OrderReturnRead,
+    ReturnAnalysisRead,
     ReturnAttachmentPlaceholder,
     ReturnDetailRead,
     ReturnEligibilityRead,
     ReturnItemRead,
     ReturnableOrderItemRead,
+    ScoringResult,
 )
+from backend.app.schemas.fraud_schema import FraudCaseRead, FraudScoreRead
+from backend.app.ml.explainability import build_explainability_panel, build_explanation, recommended_action
 from backend.app.services.realtime_service import RealtimeService
+from backend.app.services.return_image_service import ReturnImageService, ReturnImageValidationError
+from backend.app.services.scoring_stub_service import ScoringStubService
 
 logger = logging.getLogger("returnshield.return_service")
 
@@ -99,6 +107,178 @@ class ReturnService:
     def _requires_serial(self, order: Order) -> bool:
         haystack = " ".join(filter(None, [order.category, order.product_name, order.sku])).lower()
         return any(token in haystack for token in ("phone", "mobile", "electronics", "tablet", "imei", "serial"))
+
+    def _first_attachment(self, payload: OrderReturnCreate) -> ReturnAttachmentPlaceholder | None:
+        for attachment in payload.attachments:
+            if attachment.file_url:
+                return attachment
+        return None
+
+    async def _run_post_submit_image_review(
+        self,
+        order: Order,
+        return_req: ReturnRequest,
+        attachment: ReturnAttachmentPlaceholder,
+    ) -> OrderImageCompareRead | None:
+        image_service = ReturnImageService(self.session)
+        try:
+            result = await image_service.compare_order_image(
+                order.id,
+                attachment.file_url or "",
+                filename=attachment.id or attachment.image_type,
+                mime_type=attachment.file_type,
+            )
+        except (ReturnImageValidationError, Exception) as exc:
+            logger.warning("Return image review failed for %s: %s", return_req.id, exc)
+            self.session.add(
+                AuditEvent(
+                    merchant_id=order.merchant_id,
+                    entity_type="return_request",
+                    entity_id=return_req.id,
+                    event_type="RETURN_IMAGE_REVIEW_FAILED",
+                    event_json={"error": str(exc), "attachment_type": attachment.image_type},
+                )
+            )
+            return None
+
+        summary = result.summary or "Image review completed."
+        self.session.add(
+            SupportInteraction(
+                merchant_id=order.merchant_id,
+                customer_id=order.customer_id,
+                return_id=return_req.id,
+                channel="vision",
+                subject="Return image OCR review",
+                message_text=(f"OCR text: {result.ocr_text}\nSummary: {summary}"),
+                message_embedding_id=f"vision-{return_req.id}",
+                sentiment_score=-0.200 if result.matched else -0.650,
+                urgency_score=0.300 if result.matched else 0.800,
+            )
+        )
+        self.session.add(
+            AuditEvent(
+                merchant_id=order.merchant_id,
+                entity_type="return_request",
+                entity_id=return_req.id,
+                event_type="RETURN_IMAGE_REVIEW_COMPLETED",
+                event_json={
+                    "matched": result.matched,
+                    "confidence": result.confidence,
+                    "provider_model": result.provider_model,
+                    "summary": summary,
+                    "ocr_text": result.ocr_text,
+                    "mismatch_reasons": result.mismatch_reasons,
+                    "evidence": result.evidence,
+                },
+            )
+        )
+        if not result.matched:
+            self.session.add(
+                AuditEvent(
+                    merchant_id=order.merchant_id,
+                    entity_type="return_request",
+                    entity_id=return_req.id,
+                    event_type="RETURN_IMAGE_MISMATCH_DETECTED",
+                    event_json={"confidence": result.confidence, "reasons": result.mismatch_reasons},
+                )
+            )
+        return result
+
+    async def run_return_analysis(
+        self,
+        return_id: UUID,
+        *,
+        image_data_url: str | None = None,
+        filename: str | None = None,
+        mime_type: str | None = None,
+        user_id: str | None = None,
+        can_override: bool = False,
+    ) -> ReturnAnalysisRead:
+        return_req = await self.session.get(ReturnRequest, return_id)
+        if not return_req:
+            raise ReturnValidationError("RETURN_NOT_FOUND", "Return not found", 404)
+
+        order = await self._load_order(return_req.order_id)
+        image_review = None
+        if image_data_url:
+            image_review = await self._run_post_submit_image_review(
+                order,
+                return_req,
+                ReturnAttachmentPlaceholder(
+                    id=filename,
+                    file_type=mime_type,
+                    file_url=image_data_url,
+                    image_type="MANUAL_RETURN_IMAGE",
+                    uploaded_by=user_id,
+                ),
+            )
+            await self.session.flush()
+
+        scoring = ScoringStubService(self.session)
+        result = await scoring.score_return(return_id)
+        score_record, fraud_case = await scoring.save_score_and_case(return_id, result)
+        customer = await self._load_customer(order.customer_id)
+
+        if self.redis:
+            try:
+                realtime = RealtimeService(self.redis)
+                await realtime.publish_score_updated(return_id, result.final_score, score_record.merchant_id)
+                if fraud_case:
+                    await realtime.publish_fraud_case(fraud_case.id, fraud_case.merchant_id, result.risk_level)
+                await realtime.request_dashboard_refresh(score_record.merchant_id)
+            except Exception as exc:
+                logger.warning("Realtime publish failed after return analysis for %s: %s", return_id, exc)
+
+        detail = await self.get_return_detail(return_id)
+        detail.fraud_risk_score = float(score_record.final_score)
+        detail.fraud_decision = result.decision
+
+        customer_risk_score = float(getattr(customer, "customer_risk_score", 0) or 0)
+        explainability = build_explainability_panel(
+            score_breakdown={
+                "rule_score": float(result.rule_score),
+                "structured_ml_score": float(result.structured_ml_score),
+                "nlp_score": float(result.nlp_score),
+                "anomaly_score": float(result.anomaly_score),
+            },
+            customer_risk_score=customer_risk_score,
+            reason_codes=result.reason_codes,
+            decision=result.decision,
+        )
+        explanation = build_explanation(
+            result.reason_codes,
+            extra_context={
+                "prefix": "Fraud review needed because",
+                "fallback": "No material fraud indicators were detected.",
+            },
+        )
+        if image_review and image_review.ocr_text:
+            explanation = f"{explanation} OCR text observed: {image_review.ocr_text[:180]}"
+
+        decision_trace = [
+            {"stage": "rule_score", "value": result.rule_score},
+            {"stage": "structured_ml_score", "value": result.structured_ml_score},
+            {"stage": "nlp_score", "value": result.nlp_score},
+            {"stage": "graph_score", "value": result.graph_score},
+            {"stage": "anomaly_score", "value": result.anomaly_score},
+            {"stage": "final_score", "value": result.final_score},
+        ]
+
+        return ReturnAnalysisRead(
+            return_detail=detail,
+            image_review=image_review,
+            score=FraudScoreRead.model_validate(score_record),
+            fraud_case=FraudCaseRead.model_validate(fraud_case) if fraud_case else None,
+            score_result=result,
+            explanation=explanation,
+            recommended_action=recommended_action(result.decision),
+            explainability=explainability,
+            reason_codes=result.reason_codes,
+            score_breakdown=result.score_breakdown,
+            decision_trace=decision_trace,
+            model_version=result.score_breakdown.get("ml_model_version") if isinstance(result.score_breakdown, dict) else None,
+        )
+
 
     async def check_order_return_eligibility(self, order_id: UUID, can_override: bool = False) -> ReturnEligibilityRead:
         order = await self._load_order(order_id)
@@ -330,11 +510,27 @@ class ReturnService:
                     event_json={"reason": payload.eligibility_override_reason},
                 )
             )
-        await self.session.flush()
+        attachment = self._first_attachment(payload)
+        if attachment:
+            self.session.add(
+                AuditEvent(
+                    merchant_id=order.merchant_id,
+                    entity_type="return_request",
+                    entity_id=return_req.id,
+                    event_type="RETURN_IMAGE_REVIEW_QUEUED",
+                    event_json={"attachment_type": attachment.image_type, "file_type": attachment.file_type},
+                )
+            )
+            await self.session.flush()
+            await self._run_post_submit_image_review(order, return_req, attachment)
+            await self.session.flush()
 
         if self.redis:
-            realtime = RealtimeService(self.redis)
-            await realtime.enqueue_scoring(return_req.id, order.merchant_id, order.customer_id, order.id)
+            try:
+                realtime = RealtimeService(self.redis)
+                await realtime.enqueue_scoring(return_req.id, order.merchant_id, order.customer_id, order.id)
+            except Exception as exc:
+                logger.warning("Realtime enqueue failed for return %s: %s", return_req.id, exc)
 
         fraud_score, fraud_decision = await self._fraud_score_for_return(return_req.id)
         refund_amount = await self._refunded_amount_for_return(return_req.id)
@@ -413,6 +609,18 @@ class ReturnService:
         ]
         if return_req.updated_at:
             timeline.append({"label": "Return updated", "time": return_req.updated_at.isoformat()})
+        audit_rows = await self.session.execute(
+            select(AuditEvent)
+            .where(AuditEvent.entity_type == "return_request", AuditEvent.entity_id == return_req.id)
+            .order_by(AuditEvent.created_at.asc())
+        )
+        for event in audit_rows.scalars().all():
+            timeline.append(
+                {
+                    "label": event.event_type.replace("_", " ").title(),
+                    "time": event.created_at.isoformat(),
+                }
+            )
         return ReturnDetailRead(
             id=return_req.id,
             external_return_id=return_req.external_return_id,
