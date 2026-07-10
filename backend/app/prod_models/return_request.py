@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, Numeric, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -18,9 +18,18 @@ class ReturnRequest(Base):
     order_id: Mapped[UUID] = mapped_column(ForeignKey("orders.id"), nullable=False, index=True)
     shipment_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("shipments.id"), index=True)
     external_return_id: Mapped[Optional[str]] = mapped_column(String(255), index=True)
+    created_by: Mapped[Optional[str]] = mapped_column(String(255), index=True)
+    return_reason_category: Mapped[Optional[str]] = mapped_column(String(100), index=True)
     return_reason: Mapped[Optional[str]] = mapped_column(Text)
+    detailed_description: Mapped[Optional[str]] = mapped_column(Text)
     condition_reported: Mapped[Optional[str]] = mapped_column(String(100))
+    return_method: Mapped[Optional[str]] = mapped_column(String(50), index=True)
+    pickup_address_id: Mapped[Optional[str]] = mapped_column(String(255), index=True)
+    preferred_refund_method: Mapped[Optional[str]] = mapped_column(String(50), index=True)
     return_status: Mapped[Optional[str]] = mapped_column(String(50), index=True)
+    fraud_screening_status: Mapped[Optional[str]] = mapped_column(String(50), index=True)
+    eligibility_override: Mapped[bool] = mapped_column(default=False, index=True)
+    eligibility_override_reason: Mapped[Optional[str]] = mapped_column(Text)
     return_channel: Mapped[Optional[str]] = mapped_column(String(50))
     return_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), index=True)
     hours_after_delivery: Mapped[Optional[float]] = mapped_column(Numeric(10, 2), index=True)

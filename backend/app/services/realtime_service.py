@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any, Optional
 from uuid import UUID
@@ -17,11 +16,20 @@ class RealtimeService:
     def __init__(self, redis: RedisClient):
         self.redis = redis
 
-    async def enqueue_scoring(self, return_id: UUID, merchant_id: UUID, customer_id: UUID):
+    async def enqueue_scoring(
+        self,
+        return_id: UUID,
+        merchant_id: UUID,
+        customer_id: UUID,
+        order_id: UUID | None = None,
+        event_type: str = "RETURN_CREATED",
+    ):
         message = {
             "return_id": str(return_id),
             "merchant_id": str(merchant_id),
             "customer_id": str(customer_id),
+            "order_id": str(order_id) if order_id else "",
+            "event_type": event_type,
             "created_at": __import__("datetime").datetime.now(
                 __import__("datetime").timezone.utc
             ).isoformat(),

@@ -1,4 +1,18 @@
-import type { CaseDetail, CaseSummary, Metrics, PaginatedResponse, RecordsPage, Rule, FeedbackRecord, ReturnRequestPayload, ScoreResponse } from '../types';
+import type {
+  CaseDetail,
+  CaseSummary,
+  Metrics,
+  PaginatedResponse,
+  RecordsPage,
+  Rule,
+  FeedbackRecord,
+  ReturnRequestPayload,
+  ScoreResponse,
+  ReturnEligibility,
+  ReturnableOrderItem,
+  OrderReturnRecord,
+  ReturnDetail,
+} from '../types';
 
 const API_URL = (import.meta.env.VITE_API_URL ?? "/api");
 
@@ -104,8 +118,22 @@ export const api = {
     const qs = recordParams(params);
     return request<RecordsPage>(`/v1/orders${qs ? `?${qs}` : ''}`);
   },
+  getOrder: (orderId: string) => request<Record<string, unknown>>(`/v1/orders/${orderId}`),
   getOrderStats: (merchantId?: string) =>
     request<Record<string, unknown>>(`/v1/orders/stats${merchantId ? `?merchant_id=${merchantId}` : ''}`),
+  getOrderEligibility: (orderId: string) =>
+    request<ReturnEligibility>(`/v1/orders/${orderId}/return-eligibility`),
+  getOrderReturnableItems: (orderId: string) =>
+    request<ReturnableOrderItem[]>(`/v1/orders/${orderId}/returnable-items`),
+  getOrderReturns: (orderId: string) =>
+    request<{ items: OrderReturnRecord[]; total: number }>(`/v1/orders/${orderId}/returns`),
+  createOrderReturn: (orderId: string, payload: Record<string, unknown>, headers?: Record<string, string>) =>
+    request<OrderReturnRecord>(`/v1/orders/${orderId}/returns`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      headers,
+    }),
+  getReturn: (returnId: string) => request<ReturnDetail>(`/v1/returns/${returnId}`),
   getPayments: (params: { skip?: number; limit?: number; q?: string; chargeback?: boolean; merchantId?: string } = {}) => {
     const qs = recordParams(params);
     return request<RecordsPage>(`/v1/payments${qs ? `?${qs}` : ''}`);

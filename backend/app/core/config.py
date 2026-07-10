@@ -74,8 +74,25 @@ class Settings(BaseSettings):
     default_risk_threshold_high: int = 70
 
     # Logging
+    return_window_days: int = 30
+
+    # Logging
     log_level: str = "INFO"
     log_format: str = "json" if os.getenv("APP_ENV") == "production" else "console"
+
+    # LLM (OpenRouter - OpenAI-compatible API)
+    llm_enabled: bool = False
+    llm_provider: str = "openrouter"
+    llm_api_key: str = ""
+    llm_base_url: str = "https://openrouter.ai/api/v1"
+    llm_model: str = "openai/gpt-4o-mini"
+    llm_temperature: float = 0.2
+    llm_max_tokens: int = 1024
+    llm_timeout_seconds: int = 30
+
+    @property
+    def llm_available(self) -> bool:
+        return bool(self.llm_enabled and self.llm_api_key)
 
     # Paths
     data_dir: Path = Path(__file__).parent.parent.parent.parent / "data"

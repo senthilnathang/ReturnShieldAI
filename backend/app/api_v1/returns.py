@@ -11,9 +11,16 @@ from ..core.database import get_async_session
 from ..core.redis import get_redis, RedisClient
 from ..prod_models.return_request import ReturnRequest
 from ..repositories.return_repository import ReturnRepository
+from ..schemas.return_schema import (
+    ReturnRequestCreate,
+    ReturnRequestRead,
+    EnqueueScoreRequest,
+    ScoringResult,
+    ReturnDetailRead,
+)
 from ..services.realtime_service import RealtimeService
 from ..services.scoring_stub_service import ScoringStubService
-from ..schemas.return_schema import ReturnRequestCreate, ReturnRequestRead, EnqueueScoreRequest, ScoringResult
+from ..services.return_service import ReturnService, ReturnValidationError
 
 logger = logging.getLogger("returnshield.api.returns")
 router = APIRouter(prefix="/returns", tags=["Returns"])
@@ -27,9 +34,18 @@ def _to_read(r: ReturnRequest) -> ReturnRequestRead:
         order_id=r.order_id,
         shipment_id=r.shipment_id,
         external_return_id=r.external_return_id,
+        created_by=r.created_by,
+        return_reason_category=r.return_reason_category,
         return_reason=r.return_reason,
+        detailed_description=r.detailed_description,
         condition_reported=r.condition_reported,
+        return_method=r.return_method,
+        pickup_address_id=r.pickup_address_id,
+        preferred_refund_method=r.preferred_refund_method,
         return_status=r.return_status,
+        fraud_screening_status=r.fraud_screening_status,
+        eligibility_override=bool(r.eligibility_override),
+        eligibility_override_reason=r.eligibility_override_reason,
         return_channel=r.return_channel,
         return_date=r.return_date,
         hours_after_delivery=r.hours_after_delivery,
@@ -63,7 +79,7 @@ async def list_returns(
         merchant_id=merchant_id, status=status, q=q, skip=skip, limit=limit
     )
     return {
-        "items": [_to_read(r) for r in items],
+        "items": [_to_read(r).model_dump(mode="json") for r in items],
         "total": total,
         "page": skip // limit + 1 if limit > 0 else 1,
         "page_size": limit,
@@ -116,16 +132,16 @@ async def return_stats(
     }
 
 
-@router.get("/{return_id}", response_model=ReturnRequestRead)
+@router.get("/{return_id}", response_model=ReturnDetailRead)
 async def get_return(
     return_id: UUID,
     session: AsyncSession = Depends(get_async_session),
 ):
-    repo = ReturnRepository(session)
-    return_req = await repo.get(return_id)
-    if not return_req:
-        raise HTTPException(status_code=404, detail="Return not found")
-    return _to_read(return_req)
+    service = ReturnService(session)
+    try:
+        return await service.get_return_detail(return_id)
+    except ReturnValidationError as exc:
+        raise HTTPException(status_code=exc.status_code, detail={"code": exc.code, "message": exc.message}) from exc
 
 
 @router.post("/{return_id}/enqueue-score", response_model=dict)
@@ -139,7 +155,7 @@ async def enqueue_score(
         raise HTTPException(status_code=404, detail="Return not found")
 
     realtime = RealtimeService(redis)
-    await realtime.enqueue_scoring(return_id, return_req.merchant_id, return_req.customer_id)
+    await realtime.enqueue_scoring(return_id, return_req.merchant_id, return_req.customer_id, return_req.order_id)
 
     return {"status": "enqueued", "return_id": str(return_id)}
 

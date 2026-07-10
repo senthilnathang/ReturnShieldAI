@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -18,6 +18,8 @@ class ReturnItem(Base):
     sku: Mapped[Optional[str]] = mapped_column(String(100), index=True)
     product_name: Mapped[Optional[str]] = mapped_column(String(500))
     category: Mapped[Optional[str]] = mapped_column(String(100), index=True)
+    quantity: Mapped[int] = mapped_column(Integer, default=1)
+    product_value: Mapped[Optional[float]] = mapped_column(Numeric(12, 2))
     declared_condition: Mapped[Optional[str]] = mapped_column(String(100))
     warehouse_condition: Mapped[Optional[str]] = mapped_column(String(100))
     serial_number_hash: Mapped[Optional[str]] = mapped_column(String(128), index=True)

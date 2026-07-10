@@ -159,12 +159,10 @@ export type Metrics = {
   model: Record<string, string | number | null>;
 };
 
-
 export type PaginatedResponse<T> = {
   items: T[];
   total: number;
 };
-
 
 export type RecordsPage = {
   items: Array<Record<string, unknown>>;
@@ -185,4 +183,86 @@ export type FeedbackRecord = {
   product_name: string;
   risk_score: number;
   risk_level: RiskLevel;
+};
+
+export type ReturnEligibility = {
+  eligible: boolean;
+  return_window_days: number;
+  return_window_expires_at?: string | null;
+  reason?: string | null;
+  message?: string | null;
+  returnable_item_count: number;
+  can_override: boolean;
+};
+
+export type ReturnableOrderItem = {
+  order_item_id: string;
+  order_id: string;
+  sku?: string | null;
+  product_name?: string | null;
+  category?: string | null;
+  ordered_quantity: number;
+  previously_returned_quantity: number;
+  available_return_quantity: number;
+  return_quantity: number;
+  product_value?: number | null;
+  serial_number?: string | null;
+  imei?: string | null;
+  requires_serial: boolean;
+};
+
+export type ReturnItemRecord = {
+  id: string;
+  return_id: string;
+  order_id: string;
+  sku?: string | null;
+  product_name?: string | null;
+  category?: string | null;
+  quantity: number;
+  product_value?: number | null;
+  declared_condition?: string | null;
+  warehouse_condition?: string | null;
+  serial_number_hash?: string | null;
+  imei_hash?: string | null;
+  item_match_status?: string | null;
+  created_at: string;
+};
+
+export type OrderReturnRecord = {
+  id: string;
+  external_return_id?: string | null;
+  order_id: string;
+  merchant_id: string;
+  customer_id: string;
+  created_by?: string | null;
+  return_reason_category?: string | null;
+  return_reason?: string | null;
+  detailed_description?: string | null;
+  condition_reported?: string | null;
+  return_method?: string | null;
+  pickup_address_id?: string | null;
+  preferred_refund_method?: string | null;
+  return_status?: string | null;
+  fraud_screening_status?: string | null;
+  eligibility_override?: boolean;
+  eligibility_override_reason?: string | null;
+  return_date?: string | null;
+  hours_after_delivery?: number | null;
+  created_at: string;
+  updated_at: string;
+  fraud_risk_score?: number | null;
+  fraud_decision?: string | null;
+  refund_amount?: number | null;
+  item_count?: number;
+  items?: ReturnItemRecord[];
+  return_eligibility?: ReturnEligibility;
+  return_count?: number;
+  latest_return?: OrderReturnRecord | null;
+};
+
+export type ReturnDetail = OrderReturnRecord & {
+  order: Record<string, unknown>;
+  customer: Record<string, unknown>;
+  eligibility?: ReturnEligibility | null;
+  timeline: Array<{ label: string; time: string }>;
 };

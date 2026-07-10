@@ -2,6 +2,10 @@ import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type Dispa
 import { BrowserRouter, Link, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowRight, Ban, CheckCircle2, Flag, Hand, ShieldAlert, ThumbsUp } from 'lucide-react';
 import { api } from './api/client';
+import { OrdersBrowsePage as OrdersRecordsPage } from './features/orders/pages/OrdersBrowsePage';
+import { OrderDetailPage } from './features/orders/pages/OrderDetailPage';
+import { CreateReturnPage } from './features/returns/pages/CreateReturnPage';
+import { ReturnDetailPage } from './features/returns/pages/ReturnDetailPage';
 import { AppShell } from './components/Layout/AppShell';
 import { Pagination } from './components/Pagination';
 import { RecordsPagination } from './components/RecordsPagination';
@@ -3079,6 +3083,16 @@ function ReturnsBrowsePage() {
   );
 }
 
+function OrderDetailRoute() {
+  const { orderId } = useParams();
+  return orderId ? <OrderDetailPage orderId={orderId} /> : <div className="rounded-3xl border border-slate-200 bg-white p-5 text-sm text-slate-600">Missing order id.</div>;
+}
+
+function CreateReturnRoute() {
+  const { orderId } = useParams();
+  return <CreateReturnPage orderId={orderId ?? undefined} />;
+}
+
 function AppInner() {
   const [metrics, setMetrics] = useState<Metrics>();
   const [cases, setCases] = useState<CaseSummary[]>([]);
@@ -3111,7 +3125,11 @@ function AppInner() {
       <Routes>
         <Route path="/" element={<OverviewPage metrics={metrics} onReturnCreated={async (result) => { setLastScore(result); await refreshData(); navigate(`/investigations/${result.case_id}`); }} />} />
         <Route path="/cases" element={<CasesPage cases={cases} filters={filters} setFilters={setFilters} />} />
-        <Route path="/orders" element={<OrdersBrowsePage />} />
+        <Route path="/orders" element={<OrdersRecordsPage />} />
+        <Route path="/orders/:orderId" element={<OrderDetailRoute />} />
+        <Route path="/orders/:orderId/returns/create" element={<CreateReturnRoute />} />
+        <Route path="/returns/create" element={<CreateReturnRoute />} />
+        <Route path="/returns/:returnId" element={<ReturnDetailPage />} />
         <Route path="/payments" element={<PaymentsBrowsePage />} />
         <Route path="/returns" element={<ReturnsBrowsePage />} />
         <Route path="/cases/:id" element={<CaseDetailRoute onAction={handleDecision} onLoaded={setLastScore} />} />

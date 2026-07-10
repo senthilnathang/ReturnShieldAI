@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Header, Query
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,6 +11,8 @@ from ..core.database import get_async_session
 from ..prod_models.order import Order
 from ..repositories.order_repository import OrderRepository
 from ..schemas.order_schema import OrderRead
+from ..schemas.return_schema import OrderReturnCreate, OrderReturnRead, ReturnEligibilityRead, ReturnableOrderItemRead
+from ..services.return_service import ReturnService, ReturnValidationError
 
 logger = logging.getLogger("returnshield.api.orders")
 router = APIRouter(prefix="/orders", tags=["Orders"])
@@ -35,6 +37,25 @@ def _to_read(o: Order) -> OrderRead:
         created_at=o.created_at,
         updated_at=o.updated_at,
     )
+
+
+async def _service(session: AsyncSession) -> ReturnService:
+    return ReturnService(session)
+
+
+async def _order_row(session: AsyncSession, order: Order) -> dict:
+    service = await _service(session)
+    eligibility = await service.check_order_return_eligibility(order.id)
+    returns = await service.get_returns_by_order(order.id)
+    payload = _to_read(order).model_dump(mode="json")
+    payload.update(
+        {
+            "return_eligibility": eligibility.model_dump(mode="json"),
+            "return_count": len(returns),
+            "latest_return": returns[0].model_dump(mode="json") if returns else None,
+        }
+    )
+    return payload
 
 
 @router.get("/stats", response_model=dict)
@@ -93,6 +114,62 @@ async def get_order(
     return _to_read(order)
 
 
+@router.get("/{order_id}/return-eligibility", response_model=ReturnEligibilityRead)
+async def get_order_return_eligibility(
+    order_id: UUID,
+    session: AsyncSession = Depends(get_async_session),
+):
+    service = await _service(session)
+    try:
+        return await service.check_order_return_eligibility(order_id)
+    except ReturnValidationError as exc:
+        raise HTTPException(status_code=exc.status_code, detail={"code": exc.code, "message": exc.message}) from exc
+
+
+@router.get("/{order_id}/returnable-items", response_model=list[ReturnableOrderItemRead])
+async def get_order_returnable_items(
+    order_id: UUID,
+    session: AsyncSession = Depends(get_async_session),
+):
+    service = await _service(session)
+    try:
+        return await service.get_returnable_items(order_id)
+    except ReturnValidationError as exc:
+        raise HTTPException(status_code=exc.status_code, detail={"code": exc.code, "message": exc.message}) from exc
+
+
+@router.get("/{order_id}/returns", response_model=dict)
+async def get_order_returns(
+    order_id: UUID,
+    session: AsyncSession = Depends(get_async_session),
+):
+    service = await _service(session)
+    try:
+        items = await service.get_returns_by_order(order_id)
+        return {"items": [item.model_dump(mode="json") for item in items], "total": len(items)}
+    except ReturnValidationError as exc:
+        raise HTTPException(status_code=exc.status_code, detail={"code": exc.code, "message": exc.message}) from exc
+
+
+@router.post("/{order_id}/returns", response_model=OrderReturnRead, status_code=201)
+async def create_order_return(
+    order_id: UUID,
+    payload: OrderReturnCreate,
+    session: AsyncSession = Depends(get_async_session),
+    user_id: str | None = Header(default=None, alias="X-User-Id"),
+    permissions: str | None = Header(default=None, alias="X-User-Permissions"),
+):
+    service = ReturnService(session)
+    can_override = False
+    if permissions:
+        can_override = "returns.override_eligibility" in {item.strip() for item in permissions.split(",") if item.strip()}
+    try:
+        detail = await service.create_return_request(order_id, payload, user_id=user_id, can_override=can_override)
+        return OrderReturnRead.model_validate(detail)
+    except ReturnValidationError as exc:
+        raise HTTPException(status_code=exc.status_code, detail={"code": exc.code, "message": exc.message}) from exc
+
+
 @router.get("", response_model=dict)
 async def list_orders(
     customer_id: UUID | None = None,
@@ -112,8 +189,40 @@ async def list_orders(
         skip=skip,
         limit=limit,
     )
+    service = await _service(session)
+    enriched = []
+    for order in items:
+        try:
+            eligibility = await service.check_order_return_eligibility(order.id)
+            returns = await service.get_returns_by_order(order.id)
+            payload = _to_read(order).model_dump(mode="json")
+            payload.update(
+                {
+                    "return_eligibility": eligibility.model_dump(mode="json"),
+                    "return_count": len(returns),
+                    "latest_return": returns[0].model_dump(mode="json") if returns else None,
+                }
+            )
+        except ReturnValidationError as exc:
+            payload = _to_read(order).model_dump(mode="json")
+            payload.update(
+                {
+                    "return_eligibility": {
+                        "eligible": False,
+                        "return_window_days": 30,
+                        "return_window_expires_at": None,
+                        "reason": exc.code,
+                        "message": exc.message,
+                        "returnable_item_count": 0,
+                        "can_override": False,
+                    },
+                    "return_count": 0,
+                    "latest_return": None,
+                }
+            )
+        enriched.append(payload)
     return {
-        "items": [_to_read(o) for o in items],
+        "items": enriched,
         "total": total,
         "page": skip // limit + 1 if limit > 0 else 1,
         "page_size": limit,
